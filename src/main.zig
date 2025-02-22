@@ -3,6 +3,8 @@ const std = @import("std");
 const rl = @import("raylib");
 const rg = @import("raygui");
 
+const Gol = @import("game-of-life.zig");
+
 const Color = rl.Color;
 const Vec2 = rl.Vector2;
 const Rect = rl.Rectangle;
@@ -32,6 +34,15 @@ pub fn main() !void {
         .rotation = 0,
         .zoom = 20,
     };
+
+    var random = std.Random.DefaultPrng.init(blk: {
+        var seed: u64 = undefined;
+        try std.posix.getrandom(std.mem.asBytes(&seed));
+        break :blk seed;
+    });
+    const rng = random.random();
+
+    var game = Gol.init(rng);
 
     var holding_grid = false;
     var holding_sidebar = false;
@@ -79,8 +90,16 @@ pub fn main() !void {
 
             camera.begin();
             {
+                for (game.getBoard(), 0..) |line, y| {
+                    for (line, 0..) |tile, x| {
+                        if (tile) {
+                            rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, Color.red);
+                        }
+                    }
+                }
+
                 drawGrid(camera);
-                rl.drawRectangle(-1, -1, 2, 2, Color.sky_blue);
+                rl.drawRectangle(-1, -1, 2, 2, Color.sky_blue.fade(0.5));
             }
             camera.end();
 
@@ -98,12 +117,12 @@ fn drawGrid(camera: rl.Camera2D) void {
 
     var x = start_x;
     while (x < end_x) : (x += 1) {
-        rl.drawLine(x, start_y, x, end_y, Color.gray);
+        rl.drawLine(x, start_y, x, end_y, Color.gray.fade(0.25));
     }
 
     var y = start_y;
     while (y < end_y) : (y += 1) {
-        rl.drawLine(start_x, y, end_x, y, Color.gray);
+        rl.drawLine(start_x, y, end_x, y, Color.gray.fade(0.25));
     }
 }
 
