@@ -84,21 +84,19 @@ pub fn main() !void {
             }
         }
 
+        game.next();
+
         rl.beginDrawing();
         {
             rl.clearBackground(Color.ray_white);
 
             camera.begin();
             {
-                for (game.getBoard(), 0..) |line, y| {
-                    for (line, 0..) |tile, x| {
-                        if (tile) {
-                            rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, Color.red);
-                        }
-                    }
-                }
+                drawTiles(camera, game.getBoard());
 
-                drawGrid(camera);
+                if (camera.zoom > 5) {
+                    drawGrid(camera);
+                }
                 rl.drawRectangle(-1, -1, 2, 2, Color.sky_blue.fade(0.5));
             }
             camera.end();
@@ -123,6 +121,23 @@ fn drawGrid(camera: rl.Camera2D) void {
     var y = start_y;
     while (y < end_y) : (y += 1) {
         rl.drawLine(start_x, y, end_x, y, Color.gray.fade(0.25));
+    }
+}
+
+fn drawTiles(camera: rl.Camera2D, board: *Gol.Board) void {
+    const start_x: usize = @intCast(@max(@as(i32, @intFromFloat(camera.target.x)) - 1, 0));
+    const start_y: usize = @intCast(@max(@as(i32, @intFromFloat(camera.target.y)) - 1, 0));
+    const end_x: usize = @intCast(@min(@as(i32, @intFromFloat(camera.target.x + @as(f32, @floatFromInt(screen_width)) / camera.zoom)) + 1, Gol.x_len));
+    const end_y: usize = @intCast(@min(@as(i32, @intFromFloat(camera.target.y + @as(f32, @floatFromInt(screen_height)) / camera.zoom)) + 1, Gol.y_len));
+
+    var x = start_x;
+    while (x < end_x) : (x += 1) {
+        var y = start_y;
+        while (y < end_y) : (y += 1) {
+            if (board[y][x]) {
+                rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, Color.red);
+            }
+        }
     }
 }
 
