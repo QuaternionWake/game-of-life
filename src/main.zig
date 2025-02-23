@@ -86,6 +86,16 @@ pub fn main() !void {
 
         game.next();
 
+        if (rl.isMouseButtonDown(rl.MouseButton.right)) {
+            const pointer_tile_x: i32 = @intFromFloat(@floor(pointer_pos.x));
+            const pointer_tile_y: i32 = @intFromFloat(@floor(pointer_pos.y));
+            if (pointer_tile_x >= 0 and pointer_tile_x < Gol.x_len and
+                pointer_tile_y >= 0 and pointer_tile_y < Gol.y_len)
+            {
+                game.getBoard()[@intCast(pointer_tile_y)][@intCast(pointer_tile_x)] = true;
+            }
+        }
+
         rl.beginDrawing();
         {
             rl.clearBackground(Color.ray_white);
