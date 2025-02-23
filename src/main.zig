@@ -46,6 +46,7 @@ pub fn main() !void {
 
     var holding_grid = false;
     var holding_sidebar = false;
+    var game_paused = false;
 
     while (!rl.windowShouldClose()) {
         if (updateScreenSize()) {
@@ -84,7 +85,13 @@ pub fn main() !void {
             }
         }
 
-        game.next();
+        if (rl.isKeyPressed(rl.KeyboardKey.p)) {
+            game_paused = !game_paused;
+        }
+
+        if (!game_paused) {
+            game.next();
+        }
 
         if (rl.isMouseButtonDown(rl.MouseButton.right)) {
             const pointer_tile_x: i32 = @intFromFloat(@floor(pointer_pos.x));
