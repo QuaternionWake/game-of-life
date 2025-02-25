@@ -28,6 +28,23 @@ pub fn main() !void {
         @floatFromInt(screen_height),
     );
 
+    var control_rect = Rect.init(
+        sidebar_rect.x + 20,
+        sidebar_rect.y + 40,
+        sidebar_rect.width - 40,
+        140,
+    );
+
+    var pause_button_rect = Rect.init(
+        control_rect.x + 20,
+        control_rect.y + 20,
+        control_rect.width - 40,
+        40,
+    );
+
+    var step_button_rect = pause_button_rect;
+    step_button_rect.y += 60;
+
     var camera = rl.Camera2D{
         .offset = Vec2.zero(),
         .target = Vec2.zero(),
@@ -50,12 +67,11 @@ pub fn main() !void {
 
     while (!rl.windowShouldClose()) {
         if (updateScreenSize()) {
-            sidebar_rect = Rect.init(
-                @floatFromInt(screen_width - panel_width),
-                0,
-                @floatFromInt(panel_width),
-                @floatFromInt(screen_height),
-            );
+            sidebar_rect.x = @floatFromInt(screen_width - panel_width);
+            sidebar_rect.height = @floatFromInt(screen_height);
+            control_rect.x = sidebar_rect.x + 20;
+            pause_button_rect.x = control_rect.x + 20;
+            step_button_rect.x = control_rect.x + 20;
         }
 
         const mouse_pos = rl.getMousePosition();
@@ -119,6 +135,19 @@ pub fn main() !void {
             camera.end();
 
             _ = rg.guiPanel(sidebar_rect, "Options");
+            _ = rg.guiGroupBox(control_rect, "Game controls");
+            if (rg.guiButton(pause_button_rect, if (game_paused) blk: {
+                break :blk "Unpause";
+            } else blk: {
+                break :blk "Pause";
+            }) != 0) {
+                game_paused = !game_paused;
+            }
+            if (game_paused) {
+                if (rg.guiButton(step_button_rect, "Step") != 0) {
+                    game.next();
+                }
+            }
         }
         rl.endDrawing();
     }
