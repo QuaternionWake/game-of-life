@@ -173,8 +173,8 @@ fn drawGrid(camera: rl.Camera2D) void {
 fn drawTiles(camera: rl.Camera2D, board: *Gol.Board) void {
     const start_x: usize = @intCast(@max(@as(i32, @intFromFloat(camera.target.x)) - 1, 0));
     const start_y: usize = @intCast(@max(@as(i32, @intFromFloat(camera.target.y)) - 1, 0));
-    const end_x: usize = @intCast(@min(@as(i32, @intFromFloat(camera.target.x + @as(f32, @floatFromInt(screen_width)) / camera.zoom)) + 1, Gol.x_len));
-    const end_y: usize = @intCast(@min(@as(i32, @intFromFloat(camera.target.y + @as(f32, @floatFromInt(screen_height)) / camera.zoom)) + 1, Gol.y_len));
+    const end_x: usize = @intCast(std.math.clamp(@as(i32, @intFromFloat(camera.target.x + @as(f32, @floatFromInt(screen_width)) / camera.zoom)) + 1, 0, Gol.x_len));
+    const end_y: usize = @intCast(std.math.clamp(@as(i32, @intFromFloat(camera.target.y + @as(f32, @floatFromInt(screen_height)) / camera.zoom)) + 1, 0, Gol.y_len));
 
     var x = start_x;
     while (x < end_x) : (x += 1) {
