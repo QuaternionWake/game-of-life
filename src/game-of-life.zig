@@ -13,13 +13,21 @@ const Self = @This();
 
 pub fn init(rng: Random) Self {
     var self = Self{};
+    self.randomize(rng);
+    return self;
+}
+
+pub fn clear(self: *Self) void {
+    @memset(std.mem.asBytes(self.getBoard()), 0);
+}
+
+pub fn randomize(self: *Self, rng: Random) void {
     const board = self.getBoard();
     for (board) |*row| {
         for (row) |*tile| {
             tile.* = rng.boolean();
         }
     }
-    return self;
 }
 
 pub fn next(self: *Self) void {
