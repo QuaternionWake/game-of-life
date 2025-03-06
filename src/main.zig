@@ -4,6 +4,7 @@ const rl = @import("raylib");
 const rg = @import("raygui");
 
 const Gol = @import("game-of-life.zig");
+const ui = @import("ui.zig");
 
 const Color = rl.Color;
 const Vec2 = rl.Vector2;
@@ -12,42 +13,12 @@ const Rect = rl.Rectangle;
 var screen_width: i32 = 800;
 var screen_height: i32 = 500;
 
-const panel_width = 250;
-
 pub fn main() !void {
     rl.initWindow(screen_width, screen_height, "Game of Life");
     defer rl.closeWindow();
     rl.setWindowState(.{ .window_resizable = true });
 
     rl.setTargetFPS(60);
-
-    var sidebar_rect = Rect.init(
-        @floatFromInt(screen_width - panel_width),
-        0,
-        @floatFromInt(panel_width),
-        @floatFromInt(screen_height),
-    );
-
-    var control_rect = Rect.init(
-        sidebar_rect.x + 20,
-        sidebar_rect.y + 40,
-        sidebar_rect.width - 40,
-        260,
-    );
-
-    var clear_button_rect = Rect.init(
-        control_rect.x + 20,
-        control_rect.y + 20,
-        control_rect.width - 40,
-        40,
-    );
-
-    var randomize_button_rect = clear_button_rect;
-    randomize_button_rect.y += 60;
-    var pause_button_rect = randomize_button_rect;
-    pause_button_rect.y += 60;
-    var step_button_rect = pause_button_rect;
-    step_button_rect.y += 60;
 
     var camera = rl.Camera2D{
         .offset = Vec2.zero(),
@@ -69,26 +40,22 @@ pub fn main() !void {
     var holding_sidebar = false;
     var game_paused = false;
 
+    ui.updateSidebar(screen_width, screen_height);
+
     while (!rl.windowShouldClose()) {
         if (updateScreenSize()) {
-            sidebar_rect.x = @floatFromInt(screen_width - panel_width);
-            sidebar_rect.height = @floatFromInt(screen_height);
-            control_rect.x = sidebar_rect.x + 20;
-            clear_button_rect.x = control_rect.x + 20;
-            randomize_button_rect.x = control_rect.x + 20;
-            pause_button_rect.x = control_rect.x + 20;
-            step_button_rect.x = control_rect.x + 20;
+            ui.updateSidebar(screen_width, screen_height);
         }
 
         const mouse_pos = rl.getMousePosition();
         const pointer_pos = camera.target.add(mouse_pos.scale(1 / camera.zoom));
         const scroll = rl.getMouseWheelMove();
 
-        if (!holding_grid and (holding_sidebar or rl.checkCollisionPointRec(mouse_pos, sidebar_rect))) {
+        if (!holding_grid and (holding_sidebar or rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect()))) {
             holding_sidebar = rl.isMouseButtonDown(rl.MouseButton.left);
         }
 
-        if (!holding_sidebar and (holding_grid or !rl.checkCollisionPointRec(mouse_pos, sidebar_rect))) {
+        if (!holding_sidebar and (holding_grid or !rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect()))) {
             holding_grid = rl.isMouseButtonDown(rl.MouseButton.left);
             if (holding_grid) {
                 const delta = rl.getMouseDelta().scale(-1 / camera.zoom);
@@ -140,24 +107,17 @@ pub fn main() !void {
             }
             camera.end();
 
-            _ = rg.guiPanel(sidebar_rect, "Options");
-            _ = rg.guiGroupBox(control_rect, "Game controls");
-            if (rg.guiButton(clear_button_rect, "Clear") != 0) {
-                game.clear();
+            ui.drawContainer(ui.sidebar);
+            ui.drawContainer(ui.controls);
+
+            ui.drawButton(ui.clear_button, .{ .game = &game });
+            ui.drawButton(ui.randomize_button, .{ .game = &game, .rng = rng });
+            if (game_paused) {
+                ui.drawButton(ui.unpause_button, .{ .paused = &game_paused });
+            } else {
+                ui.drawButton(ui.pause_button, .{ .paused = &game_paused });
             }
-            if (rg.guiButton(randomize_button_rect, "Randomize") != 0) {
-                game.randomize(rng);
-            }
-            if (rg.guiButton(pause_button_rect, if (game_paused) blk: {
-                break :blk "Unpause";
-            } else blk: {
-                break :blk "Pause";
-            }) != 0) {
-                game_paused = !game_paused;
-            }
-            if (rg.guiButton(step_button_rect, "Step") != 0) {
-                game.next();
-            }
+            ui.drawButton(ui.step_button, .{ .game = &game });
         }
         rl.endDrawing();
     }
