@@ -1,3 +1,5 @@
+const std = @import("std");
+
 const rl = @import("raylib");
 const rg = @import("raygui");
 
@@ -37,6 +39,35 @@ pub fn drawContainer(c: Container) void {
     }
 }
 
+pub fn drawRadioButtons(rb: RadioButtons, radio_enum: anytype) @TypeOf(radio_enum) {
+    if (@typeInfo(@TypeOf(radio_enum)) != .Enum) {
+        @compileError("Expected enum type, found '" ++ @typeName(radio_enum) ++ "'");
+    }
+
+    var rect = if (rb.container) |container| rect: {
+        const pos = container.getPos().add(rb.pos);
+        break :rect Rect.init(pos.x, pos.y, rb.radio_size.x, rb.radio_size.y);
+    } else rect: {
+        break :rect Rect.init(rb.pos.x, rb.pos.y, rb.radio_size.x, rb.radio_size.y);
+    };
+
+    const fields = std.meta.fields(@TypeOf(radio_enum));
+
+    var retval = radio_enum;
+    inline for (fields) |field| {
+        const b1 = field.value == @intFromEnum(radio_enum);
+        var b2 = b1;
+        _ = rg.guiCheckBox(rect, field.name, &b2);
+        if (b2 != b1) {
+            retval = @enumFromInt(field.value);
+        }
+
+        rect.x += rb.offset.x;
+        rect.y += rb.offset.y;
+    }
+    return retval;
+}
+
 pub fn updateSidebar(screen_width: i32, screen_height: i32) void {
     sidebar.pos.x = @floatFromInt(screen_width - sidebar_width);
     sidebar.size.y = @floatFromInt(screen_height);
@@ -68,6 +99,13 @@ const Button = struct {
     size: Vec2,
     text: [*:0]const u8,
     func: fn (ctx: anytype) void,
+};
+
+const RadioButtons = struct {
+    container: ?*const Container,
+    pos: Vec2,
+    radio_size: Vec2,
+    offset: Vec2,
 };
 
 pub var sidebar: Container = .{
@@ -144,4 +182,11 @@ pub const step_button: Button = .{
             ctx.game.next();
         }
     }.func,
+};
+
+pub const edit_mode_radio: RadioButtons = .{
+    .container = null,
+    .pos = Vec2.init(20, 20),
+    .radio_size = Vec2.init(15, 15),
+    .offset = Vec2.init(0, 20),
 };

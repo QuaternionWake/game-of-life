@@ -42,6 +42,12 @@ pub fn main() !void {
 
     ui.updateSidebar(screen_width, screen_height);
 
+    const EditMode = enum { Aliven, Kill, Invert };
+    var edit_mode: EditMode = .Aliven;
+
+    const Pos = struct { x: i32, y: i32 };
+    var last_edited_tile: ?Pos = null;
+
     while (!rl.windowShouldClose()) {
         if (updateScreenSize()) {
             ui.updateSidebar(screen_width, screen_height);
@@ -83,13 +89,27 @@ pub fn main() !void {
         }
 
         if (rl.isMouseButtonDown(rl.MouseButton.right)) {
-            const pointer_tile_x: i32 = @intFromFloat(@floor(pointer_pos.x));
-            const pointer_tile_y: i32 = @intFromFloat(@floor(pointer_pos.y));
-            if (pointer_tile_x >= 0 and pointer_tile_x < Gol.x_len and
-                pointer_tile_y >= 0 and pointer_tile_y < Gol.y_len)
-            {
-                game.getBoard()[@intCast(pointer_tile_y)][@intCast(pointer_tile_x)] = true;
+            const pointer_tile: Pos = .{
+                .x = @intFromFloat(@floor(pointer_pos.x)),
+                .y = @intFromFloat(@floor(pointer_pos.y)),
+            };
+            if (pointer_tile.x >= 0 and pointer_tile.x < Gol.x_len and
+                pointer_tile.y >= 0 and pointer_tile.y < Gol.y_len)
+            edit_tile: {
+                if (last_edited_tile != null and std.meta.eql(last_edited_tile, pointer_tile)) {
+                    break :edit_tile;
+                }
+                game.getBoard()[@intCast(pointer_tile.y)][@intCast(pointer_tile.x)] = switch (edit_mode) {
+                    .Aliven => true,
+                    .Kill => false,
+                    .Invert => !game.getBoard()[@intCast(pointer_tile.y)][@intCast(pointer_tile.x)],
+                };
+                last_edited_tile = pointer_tile;
+            } else {
+                last_edited_tile = null;
             }
+        } else {
+            last_edited_tile = null;
         }
 
         rl.beginDrawing();
@@ -118,6 +138,8 @@ pub fn main() !void {
                 ui.drawButton(ui.pause_button, .{ .paused = &game_paused });
             }
             ui.drawButton(ui.step_button, .{ .game = &game });
+
+            edit_mode = ui.drawRadioButtons(ui.edit_mode_radio, edit_mode);
         }
         rl.endDrawing();
     }
