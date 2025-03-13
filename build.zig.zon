@@ -1,10 +1,12 @@
 .{
-    .name = "game-of-life",
+    .name = .game_of_life,
     .version = "0.0.0",
+    .fingerprint = 0x2937c9e2a8a8f82b, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.14.0",
     .dependencies = .{
-        .@"raylib-zig" = .{
-            .url = "git+https://github.com/Not-Nik/raylib-zig?ref=devel#5004bb2316fc34a416644f3910c8c79dd08d7c63",
-            .hash = "1220223e9881fc9510eeb30fc2ee73fb49ee645bf1859cc46a92b649d35ecfd3351a",
+        .raylib_zig = .{
+            .url = "git+https://github.com/Not-Nik/raylib-zig?ref=devel#d4fc514d54a3b37b9b3e4f4983f611c3469e8c2a",
+            .hash = "raylib_zig-5.6.0-dev-KE8REHguBQAE0xoNkra7mtEqr8cCZHk7k_03txLZB-cZ",
         },
     },
     .paths = .{

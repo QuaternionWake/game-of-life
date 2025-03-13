@@ -1,18 +1,18 @@
 const std = @import("std");
-const rlz = @import("raylib-zig");
+const rlz = @import("raylib_zig");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
-        .name = "game-of-life",
+        .name = "game_of_life",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    const rl_dep = b.dependency("raylib-zig", .{
+    const rl_dep = b.dependency("raylib_zig", .{
         .target = target,
         .optimize = optimize,
         .linux_display_backend = rlz.LinuxDisplayBackend.Both,

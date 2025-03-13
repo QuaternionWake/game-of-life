@@ -40,7 +40,7 @@ pub fn drawContainer(c: Container) void {
 }
 
 pub fn drawRadioButtons(rb: RadioButtons, radio_enum: anytype) @TypeOf(radio_enum) {
-    if (@typeInfo(@TypeOf(radio_enum)) != .Enum) {
+    if (@typeInfo(@TypeOf(radio_enum)) != .@"enum") {
         @compileError("Expected enum type, found '" ++ @typeName(radio_enum) ++ "'");
     }
 
@@ -77,7 +77,7 @@ const Container = struct {
     container: ?*const Container,
     pos: Vec2,
     size: Vec2,
-    title: [*:0]const u8,
+    title: [:0]const u8,
     type: enum { Panel, GroupBox },
 
     pub fn getRect(self: Container) Rect {
@@ -97,7 +97,7 @@ const Button = struct {
     container: ?*const Container,
     pos: Vec2,
     size: Vec2,
-    text: [*:0]const u8,
+    text: [:0]const u8,
     func: fn (ctx: anytype) void,
 };
 
