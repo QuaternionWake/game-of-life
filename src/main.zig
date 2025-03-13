@@ -40,13 +40,12 @@ pub fn main() !void {
     var holding_sidebar = false;
     var game_paused = false;
 
+    var selection: ?Rect = null;
+
     ui.updateSidebar(screen_width, screen_height);
 
-    const EditMode = enum { Aliven, Kill, Invert };
-    var edit_mode: EditMode = .Aliven;
-
-    const Pos = struct { x: i32, y: i32 };
-    var last_edited_tile: ?Pos = null;
+    const EditMode = enum { Move, Edit, Select };
+    var edit_mode: EditMode = .Move;
 
     while (!rl.windowShouldClose()) {
         if (updateScreenSize()) {
@@ -54,31 +53,8 @@ pub fn main() !void {
         }
 
         const mouse_pos = rl.getMousePosition();
-        const pointer_pos = camera.target.add(mouse_pos.scale(1 / camera.zoom));
+        const pointer_pos = getPointerPos(mouse_pos, camera);
         const scroll = rl.getMouseWheelMove();
-
-        if (!holding_grid and (holding_sidebar or rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect()))) {
-            holding_sidebar = rl.isMouseButtonDown(rl.MouseButton.left);
-        }
-
-        if (!holding_sidebar and (holding_grid or !rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect()))) {
-            holding_grid = rl.isMouseButtonDown(rl.MouseButton.left);
-            if (holding_grid) {
-                const delta = rl.getMouseDelta().scale(-1 / camera.zoom);
-                camera.target = camera.target.add(delta);
-            }
-
-            if (scroll != 0) {
-                camera.zoom += scroll;
-                if (camera.zoom < 0.1) {
-                    camera.zoom = 0.1;
-                } else if (camera.zoom > 100) {
-                    camera.zoom = 100;
-                }
-
-                camera.target = pointer_pos.subtract(mouse_pos.scale(1 / camera.zoom));
-            }
-        }
 
         if (rl.isKeyPressed(rl.KeyboardKey.p)) {
             game_paused = !game_paused;
@@ -88,28 +64,60 @@ pub fn main() !void {
             game.next();
         }
 
-        if (rl.isMouseButtonDown(rl.MouseButton.right)) {
-            const pointer_tile: Pos = .{
-                .x = @intFromFloat(@floor(pointer_pos.x)),
-                .y = @intFromFloat(@floor(pointer_pos.y)),
+        if (edit_mode == .Move or rl.isKeyDown(rl.KeyboardKey.left_control)) {
+            // Move and zoom the camera
+            // ------------------------
+            if (!holding_grid and (holding_sidebar or rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect()))) {
+                holding_sidebar = rl.isMouseButtonDown(rl.MouseButton.left);
+            }
+
+            if (!holding_sidebar and (holding_grid or !rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect()))) {
+                holding_grid = rl.isMouseButtonDown(rl.MouseButton.left);
+                if (holding_grid) {
+                    const delta = rl.getMouseDelta().scale(-1 / camera.zoom);
+                    camera.target = camera.target.add(delta);
+                }
+
+                if (scroll != 0) {
+                    camera.zoom += scroll;
+                    if (camera.zoom < 0.1) {
+                        camera.zoom = 0.1;
+                    } else if (camera.zoom > 100) {
+                        camera.zoom = 100;
+                    }
+
+                    camera.target = pointer_pos.subtract(mouse_pos.scale(1 / camera.zoom));
+                }
+            }
+        } else if (edit_mode == .Edit) blk: {
+            // Edit a tile
+            // -----------
+            const new_tile_state = if (rl.isMouseButtonDown(rl.MouseButton.left)) true else if (rl.isMouseButtonDown(rl.MouseButton.right)) false else break :blk;
+
+            const pointer_tile = .{
+                .x = @as(i32, @intFromFloat(@floor(pointer_pos.x))),
+                .y = @as(i32, @intFromFloat(@floor(pointer_pos.y))),
             };
             if (pointer_tile.x >= 0 and pointer_tile.x < Gol.x_len and
                 pointer_tile.y >= 0 and pointer_tile.y < Gol.y_len)
-            edit_tile: {
-                if (last_edited_tile != null and std.meta.eql(last_edited_tile, pointer_tile)) {
-                    break :edit_tile;
-                }
-                game.getBoard()[@intCast(pointer_tile.y)][@intCast(pointer_tile.x)] = switch (edit_mode) {
-                    .Aliven => true,
-                    .Kill => false,
-                    .Invert => !game.getBoard()[@intCast(pointer_tile.y)][@intCast(pointer_tile.x)],
-                };
-                last_edited_tile = pointer_tile;
-            } else {
-                last_edited_tile = null;
+            {
+                game.getBoard()[@intCast(pointer_tile.y)][@intCast(pointer_tile.x)] = new_tile_state;
             }
-        } else {
-            last_edited_tile = null;
+        } else if (edit_mode == .Select) {
+            // Modify the selection
+            // --------------------
+            if (rl.isMouseButtonDown(rl.MouseButton.left)) {
+                if (selection) |*s| {
+                    const pos = Vec2.init(s.x, s.y);
+                    const size = pointer_pos.subtract(pos);
+                    s.width = size.x;
+                    s.height = size.y;
+                } else {
+                    selection = Rect.init(pointer_pos.x, pointer_pos.y, 0, 0);
+                }
+            } else {
+                selection = null;
+            }
         }
 
         rl.beginDrawing();
@@ -118,12 +126,16 @@ pub fn main() !void {
 
             camera.begin();
             {
-                drawTiles(camera, game.getBoard());
+                drawTiles(camera, game.getBoard(), selection);
 
                 if (camera.zoom > 5) {
                     drawGrid(camera);
                 }
                 rl.drawRectangle(-1, -1, 2, 2, Color.sky_blue.fade(0.5));
+
+                if (selection) |s| {
+                    rl.drawRectangleLinesEx(normalizeRect(s), 2 / camera.zoom, Color.sky_blue);
+                }
             }
             camera.end();
 
@@ -145,6 +157,23 @@ pub fn main() !void {
     }
 }
 
+fn getPointerPos(mouse_pos: Vec2, camera: rl.Camera2D) Vec2 {
+    return camera.target.add(mouse_pos.scale(1 / camera.zoom));
+}
+
+fn normalizeRect(rect: Rect) Rect {
+    var res = rect;
+    if (rect.width < 0) {
+        res.x += rect.width;
+        res.width = -rect.width;
+    }
+    if (rect.height < 0) {
+        res.y += rect.height;
+        res.height = -rect.height;
+    }
+    return res;
+}
+
 fn drawGrid(camera: rl.Camera2D) void {
     const start_x: i32 = @as(i32, @intFromFloat(camera.target.x)) - 1;
     const start_y: i32 = @as(i32, @intFromFloat(camera.target.y)) - 1;
@@ -162,18 +191,40 @@ fn drawGrid(camera: rl.Camera2D) void {
     }
 }
 
-fn drawTiles(camera: rl.Camera2D, board: *Gol.Board) void {
+fn drawTiles(camera: rl.Camera2D, board: *Gol.Board, selection: ?Rect) void {
     const start_x: usize = @intCast(@max(@as(i32, @intFromFloat(camera.target.x)) - 1, 0));
     const start_y: usize = @intCast(@max(@as(i32, @intFromFloat(camera.target.y)) - 1, 0));
     const end_x: usize = @intCast(std.math.clamp(@as(i32, @intFromFloat(camera.target.x + @as(f32, @floatFromInt(screen_width)) / camera.zoom)) + 1, 0, Gol.x_len));
     const end_y: usize = @intCast(std.math.clamp(@as(i32, @intFromFloat(camera.target.y + @as(f32, @floatFromInt(screen_height)) / camera.zoom)) + 1, 0, Gol.y_len));
 
-    var x = start_x;
-    while (x < end_x) : (x += 1) {
-        var y = start_y;
-        while (y < end_y) : (y += 1) {
-            if (board[y][x]) {
-                rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, Color.red);
+    if (selection) |select| {
+        const sel = normalizeRect(select);
+        const sel_start_x: usize = @intFromFloat(@floor(@max(camera.target.x - 1, sel.x, 0)));
+        const sel_start_y: usize = @intFromFloat(@floor(@max(camera.target.y - 1, sel.y, 0)));
+        const sel_end_x: usize = @intFromFloat(std.math.clamp(sel.x + sel.width + 1, 0, Gol.x_len));
+        const sel_end_y: usize = @intFromFloat(std.math.clamp(sel.y + sel.height + 1, 0, Gol.y_len));
+
+        var x = start_x;
+        while (x < end_x) : (x += 1) {
+            var y = start_y;
+            while (y < end_y) : (y += 1) {
+                if (board[y][x]) {
+                    if (sel_start_x <= x and x < sel_end_x and sel_start_y <= y and y < sel_end_y) {
+                        rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, Color.blue);
+                    } else {
+                        rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, Color.red);
+                    }
+                }
+            }
+        }
+    } else {
+        var x = start_x;
+        while (x < end_x) : (x += 1) {
+            var y = start_y;
+            while (y < end_y) : (y += 1) {
+                if (board[y][x]) {
+                    rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, Color.red);
+                }
             }
         }
     }
