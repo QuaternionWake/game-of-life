@@ -21,8 +21,8 @@ pub fn main() !void {
     rl.setTargetFPS(60);
 
     var camera = rl.Camera2D{
-        .offset = Vec2.zero(),
-        .target = Vec2.zero(),
+        .offset = .zero(),
+        .target = .zero(),
         .rotation = 0,
         .zoom = 20,
     };
@@ -56,7 +56,7 @@ pub fn main() !void {
         const pointer_pos = getPointerPos(mouse_pos, camera);
         const scroll = rl.getMouseWheelMove();
 
-        if (rl.isKeyPressed(rl.KeyboardKey.p)) {
+        if (rl.isKeyPressed(.p)) {
             game_paused = !game_paused;
         }
 
@@ -64,15 +64,15 @@ pub fn main() !void {
             game.next();
         }
 
-        if (edit_mode == .Move or rl.isKeyDown(rl.KeyboardKey.left_control)) {
+        if (edit_mode == .Move or rl.isKeyDown(.left_control)) {
             // Move and zoom the camera
             // ------------------------
             if (!holding_grid and (holding_sidebar or rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect()))) {
-                holding_sidebar = rl.isMouseButtonDown(rl.MouseButton.left);
+                holding_sidebar = rl.isMouseButtonDown(.left);
             }
 
             if (!holding_sidebar and (holding_grid or !rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect()))) {
-                holding_grid = rl.isMouseButtonDown(rl.MouseButton.left);
+                holding_grid = rl.isMouseButtonDown(.left);
                 if (holding_grid) {
                     const delta = rl.getMouseDelta().scale(-1 / camera.zoom);
                     camera.target = camera.target.add(delta);
@@ -92,7 +92,7 @@ pub fn main() !void {
         } else if (edit_mode == .Edit) blk: {
             // Edit a tile
             // -----------
-            const new_tile_state = if (rl.isMouseButtonDown(rl.MouseButton.left)) true else if (rl.isMouseButtonDown(rl.MouseButton.right)) false else break :blk;
+            const new_tile_state = if (rl.isMouseButtonDown(.left)) true else if (rl.isMouseButtonDown(.right)) false else break :blk;
 
             const pointer_tile = .{
                 .x = @as(i32, @intFromFloat(@floor(pointer_pos.x))),
@@ -106,7 +106,7 @@ pub fn main() !void {
         } else if (edit_mode == .Select) {
             // Modify the selection
             // --------------------
-            if (rl.isMouseButtonDown(rl.MouseButton.left)) {
+            if (rl.isMouseButtonDown(.left)) {
                 if (selection) |*s| {
                     const pos = Vec2.init(s.x, s.y);
                     const size = pointer_pos.subtract(pos);
@@ -122,7 +122,7 @@ pub fn main() !void {
 
         rl.beginDrawing();
         {
-            rl.clearBackground(Color.ray_white);
+            rl.clearBackground(.ray_white);
 
             camera.begin();
             {
@@ -134,7 +134,7 @@ pub fn main() !void {
                 rl.drawRectangle(-1, -1, 2, 2, Color.sky_blue.fade(0.5));
 
                 if (selection) |s| {
-                    rl.drawRectangleLinesEx(normalizeRect(s), 2 / camera.zoom, Color.sky_blue);
+                    rl.drawRectangleLinesEx(normalizeRect(s), 2 / camera.zoom, .sky_blue);
                 }
             }
             camera.end();
@@ -210,9 +210,9 @@ fn drawTiles(camera: rl.Camera2D, board: *Gol.Board, selection: ?Rect) void {
             while (y < end_y) : (y += 1) {
                 if (board[y][x]) {
                     if (sel_start_x <= x and x < sel_end_x and sel_start_y <= y and y < sel_end_y) {
-                        rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, Color.blue);
+                        rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, .blue);
                     } else {
-                        rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, Color.red);
+                        rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, .red);
                     }
                 }
             }
@@ -223,7 +223,7 @@ fn drawTiles(camera: rl.Camera2D, board: *Gol.Board, selection: ?Rect) void {
             var y = start_y;
             while (y < end_y) : (y += 1) {
                 if (board[y][x]) {
-                    rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, Color.red);
+                    rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, .red);
                 }
             }
         }
