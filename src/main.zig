@@ -1,4 +1,5 @@
 const std = @import("std");
+const math = std.math;
 
 const rl = @import("raylib");
 const rg = @import("raygui");
@@ -10,11 +11,10 @@ const Color = rl.Color;
 const Vec2 = rl.Vector2;
 const Rect = rl.Rectangle;
 
-var screen_width: i32 = 800;
-var screen_height: i32 = 500;
+var screen_size: Vec2 = .init(800, 500);
 
 pub fn main() !void {
-    rl.initWindow(screen_width, screen_height, "Game of Life");
+    rl.initWindow(@intFromFloat(screen_size.x), @intFromFloat(screen_size.y), "Game of Life");
     defer rl.closeWindow();
     rl.setWindowState(.{ .window_resizable = true });
 
@@ -42,14 +42,14 @@ pub fn main() !void {
 
     var selection: ?Rect = null;
 
-    ui.updateSidebar(screen_width, screen_height);
+    ui.updateSidebar(screen_size);
 
     const EditMode = enum { Move, Edit, Select };
     var edit_mode: EditMode = .Move;
 
     while (!rl.windowShouldClose()) {
         if (updateScreenSize()) {
-            ui.updateSidebar(screen_width, screen_height);
+            ui.updateSidebar(screen_size);
         }
 
         const mouse_pos = rl.getMousePosition();
@@ -80,11 +80,7 @@ pub fn main() !void {
 
                 if (scroll != 0) {
                     camera.zoom += scroll;
-                    if (camera.zoom < 0.1) {
-                        camera.zoom = 0.1;
-                    } else if (camera.zoom > 100) {
-                        camera.zoom = 100;
-                    }
+                    camera.zoom = math.clamp(camera.zoom, 0.1, 100);
 
                     camera.target = pointer_pos.subtract(mouse_pos.scale(1 / camera.zoom));
                 }
@@ -175,10 +171,11 @@ fn normalizeRect(rect: Rect) Rect {
 }
 
 fn drawGrid(camera: rl.Camera2D) void {
-    const start_x: i32 = @as(i32, @intFromFloat(camera.target.x)) - 1;
-    const start_y: i32 = @as(i32, @intFromFloat(camera.target.y)) - 1;
-    const end_x: i32 = @as(i32, @intFromFloat(camera.target.x + @as(f32, @floatFromInt(screen_width)) / camera.zoom)) + 1;
-    const end_y: i32 = @as(i32, @intFromFloat(camera.target.y + @as(f32, @floatFromInt(screen_height)) / camera.zoom)) + 1;
+    const other_corner = otherScreenCorner(camera);
+    const start_x: i32 = @intFromFloat(@floor(camera.target.x));
+    const start_y: i32 = @intFromFloat(@floor(camera.target.y));
+    const end_x: i32 = @intFromFloat(@ceil(other_corner.x));
+    const end_y: i32 = @intFromFloat(@ceil(other_corner.y));
 
     var x = start_x;
     while (x < end_x) : (x += 1) {
@@ -192,17 +189,18 @@ fn drawGrid(camera: rl.Camera2D) void {
 }
 
 fn drawTiles(camera: rl.Camera2D, board: *Gol.Board, selection: ?Rect) void {
-    const start_x: usize = @intCast(@max(@as(i32, @intFromFloat(camera.target.x)) - 1, 0));
-    const start_y: usize = @intCast(@max(@as(i32, @intFromFloat(camera.target.y)) - 1, 0));
-    const end_x: usize = @intCast(std.math.clamp(@as(i32, @intFromFloat(camera.target.x + @as(f32, @floatFromInt(screen_width)) / camera.zoom)) + 1, 0, Gol.x_len));
-    const end_y: usize = @intCast(std.math.clamp(@as(i32, @intFromFloat(camera.target.y + @as(f32, @floatFromInt(screen_height)) / camera.zoom)) + 1, 0, Gol.y_len));
+    const other_corner = otherScreenCorner(camera);
+    const start_x: usize = math.lossyCast(usize, @floor(camera.target.x));
+    const start_y: usize = math.lossyCast(usize, @floor(camera.target.y));
+    const end_x: usize = math.lossyCast(usize, @ceil(@min(other_corner.x, Gol.x_len)));
+    const end_y: usize = math.lossyCast(usize, @ceil(@min(other_corner.y, Gol.y_len)));
 
     if (selection) |select| {
         const sel = normalizeRect(select);
-        const sel_start_x: usize = @intFromFloat(@floor(@max(camera.target.x - 1, sel.x, 0)));
-        const sel_start_y: usize = @intFromFloat(@floor(@max(camera.target.y - 1, sel.y, 0)));
-        const sel_end_x: usize = @intFromFloat(std.math.clamp(sel.x + sel.width + 1, 0, Gol.x_len));
-        const sel_end_y: usize = @intFromFloat(std.math.clamp(sel.y + sel.height + 1, 0, Gol.y_len));
+        const sel_start_x: usize = @intFromFloat(@floor(@max(camera.target.x, sel.x, 0)));
+        const sel_start_y: usize = @intFromFloat(@floor(@max(camera.target.y, sel.y, 0)));
+        const sel_end_x: usize = math.lossyCast(usize, @ceil(@min(sel.x + sel.width, other_corner.x, Gol.x_len)));
+        const sel_end_y: usize = math.lossyCast(usize, @ceil(@min(sel.y + sel.height, other_corner.y, Gol.y_len)));
 
         var x = start_x;
         while (x < end_x) : (x += 1) {
@@ -230,13 +228,18 @@ fn drawTiles(camera: rl.Camera2D, board: *Gol.Board, selection: ?Rect) void {
     }
 }
 
-fn updateScreenSize() bool {
-    const new_width = rl.getScreenWidth();
-    const new_height = rl.getScreenHeight();
+fn otherScreenCorner(camera: rl.Camera2D) Vec2 {
+    return camera.target.add(screen_size.scale(1 / camera.zoom));
+}
 
-    if (new_width != screen_width or new_height != screen_height) {
-        screen_width = new_width;
-        screen_height = new_height;
+fn updateScreenSize() bool {
+    const new_size: Vec2 = .init(
+        @floatFromInt(rl.getScreenWidth()),
+        @floatFromInt(rl.getScreenHeight()),
+    );
+
+    if (new_size.equals(screen_size) == 0) {
+        screen_size = new_size;
         return true;
     }
     return false;

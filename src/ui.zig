@@ -9,12 +9,7 @@ const Rect = rl.Rectangle;
 pub const sidebar_width = 250;
 
 pub fn drawButton(b: Button, ctx: anytype) void {
-    const rect = if (b.container) |container| rect: {
-        const pos = container.getPos().add(b.pos);
-        break :rect Rect.init(pos.x, pos.y, b.size.x, b.size.y);
-    } else rect: {
-        break :rect Rect.init(b.pos.x, b.pos.y, b.size.x, b.size.y);
-    };
+    const rect = rectFromVecs(b.getPos(), b.size);
 
     if (rg.guiButton(rect, b.text) != 0) {
         b.func(ctx);
@@ -22,12 +17,7 @@ pub fn drawButton(b: Button, ctx: anytype) void {
 }
 
 pub fn drawContainer(c: Container) void {
-    const rect = if (c.container) |container| rect: {
-        const pos = container.getPos().add(c.pos);
-        break :rect Rect.init(pos.x, pos.y, c.size.x, c.size.y);
-    } else rect: {
-        break :rect Rect.init(c.pos.x, c.pos.y, c.size.x, c.size.y);
-    };
+    const rect = rectFromVecs(c.getPos(), c.size);
 
     switch (c.type) {
         .Panel => {
@@ -44,12 +34,7 @@ pub fn drawRadioButtons(rb: RadioButtons, radio_enum: anytype) @TypeOf(radio_enu
         @compileError("Expected enum type, found '" ++ @typeName(radio_enum) ++ "'");
     }
 
-    var rect = if (rb.container) |container| rect: {
-        const pos = container.getPos().add(rb.pos);
-        break :rect Rect.init(pos.x, pos.y, rb.radio_size.x, rb.radio_size.y);
-    } else rect: {
-        break :rect Rect.init(rb.pos.x, rb.pos.y, rb.radio_size.x, rb.radio_size.y);
-    };
+    var rect = rectFromVecs(rb.getPos(), rb.radio_size);
 
     const fields = std.meta.fields(@TypeOf(radio_enum));
 
@@ -68,9 +53,13 @@ pub fn drawRadioButtons(rb: RadioButtons, radio_enum: anytype) @TypeOf(radio_enu
     return retval;
 }
 
-pub fn updateSidebar(screen_width: i32, screen_height: i32) void {
-    sidebar.pos.x = @floatFromInt(screen_width - sidebar_width);
-    sidebar.size.y = @floatFromInt(screen_height);
+fn rectFromVecs(pos: Vec2, size: Vec2) Rect {
+    return .init(pos.x, pos.y, size.x, size.y);
+}
+
+pub fn updateSidebar(screen_size: Vec2) void {
+    sidebar.pos.x = screen_size.x - sidebar_width;
+    sidebar.size.y = screen_size.y;
 }
 
 const Container = struct {
@@ -86,7 +75,7 @@ const Container = struct {
 
     pub fn getPos(self: Container) Vec2 {
         if (self.container) |c| {
-            return c.pos.add(self.pos);
+            return c.getPos().add(self.pos);
         } else {
             return self.pos;
         }
@@ -99,6 +88,14 @@ const Button = struct {
     size: Vec2,
     text: [:0]const u8,
     func: fn (ctx: anytype) void,
+
+    pub fn getPos(self: Button) Vec2 {
+        if (self.container) |c| {
+            return c.getPos().add(self.pos);
+        } else {
+            return self.pos;
+        }
+    }
 };
 
 const RadioButtons = struct {
@@ -106,6 +103,14 @@ const RadioButtons = struct {
     pos: Vec2,
     radio_size: Vec2,
     offset: Vec2,
+
+    pub fn getPos(self: RadioButtons) Vec2 {
+        if (self.container) |c| {
+            return c.getPos().add(self.pos);
+        } else {
+            return self.pos;
+        }
+    }
 };
 
 pub var sidebar: Container = .{
