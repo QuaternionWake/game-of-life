@@ -53,6 +53,18 @@ pub fn drawRadioButtons(rb: RadioButtons, radio_enum: anytype) @TypeOf(radio_enu
     return retval;
 }
 
+pub fn drawSlider(s: Slider, val: *f32, min: f32, max: f32) bool {
+    const rect = rectFromVecs(s.getPos(), s.size);
+
+    return rg.guiSlider(rect, s.text_left, s.text_right, val, min, max) != 0;
+}
+
+pub fn drawSpinner(sb: Spinner, val: *i32, min: i32, max: i32, edit_mode: bool) bool {
+    const rect = rectFromVecs(sb.getPos(), sb.size);
+
+    return rg.guiSpinner(rect, sb.text, val, min, max, edit_mode) != 0;
+}
+
 fn rectFromVecs(pos: Vec2, size: Vec2) Rect {
     return .init(pos.x, pos.y, size.x, size.y);
 }
@@ -113,6 +125,37 @@ const RadioButtons = struct {
     }
 };
 
+const Slider = struct {
+    container: ?*const Container,
+    pos: Vec2,
+    size: Vec2,
+    text_left: [:0]const u8,
+    text_right: [:0]const u8,
+
+    pub fn getPos(self: Slider) Vec2 {
+        if (self.container) |c| {
+            return c.getPos().add(self.pos);
+        } else {
+            return self.pos;
+        }
+    }
+};
+
+const Spinner = struct {
+    container: ?*const Container,
+    pos: Vec2,
+    size: Vec2,
+    text: [:0]const u8,
+
+    pub fn getPos(self: Spinner) Vec2 {
+        if (self.container) |c| {
+            return c.getPos().add(self.pos);
+        } else {
+            return self.pos;
+        }
+    }
+};
+
 pub var sidebar: Container = .{
     .container = null,
     .pos = Vec2.init(0, 0),
@@ -129,6 +172,14 @@ pub const controls: Container = .{
     .type = .GroupBox,
 };
 
+pub const game_speed_box: Container = .{
+    .container = &sidebar,
+    .pos = Vec2.init(20, 320),
+    .size = Vec2.init(sidebar_width - 40, 40),
+    .title = "Game speed",
+    .type = .GroupBox,
+};
+
 pub const clear_button: Button = .{
     .container = &controls,
     .pos = Vec2.init(20, 20),
@@ -136,7 +187,7 @@ pub const clear_button: Button = .{
     .text = "Clear",
     .func = struct {
         pub fn func(ctx: anytype) void {
-            ctx.game.clear();
+            ctx.clear.* = true;
         }
     }.func,
 };
@@ -148,7 +199,7 @@ pub const randomize_button: Button = .{
     .text = "Randomize",
     .func = struct {
         pub fn func(ctx: anytype) void {
-            ctx.game.randomize(ctx.rng);
+            ctx.randomize.* = true;
         }
     }.func,
 };
@@ -184,7 +235,7 @@ pub const step_button: Button = .{
     .text = "Step",
     .func = struct {
         pub fn func(ctx: anytype) void {
-            ctx.game.next();
+            ctx.step.* = true;
         }
     }.func,
 };
@@ -194,4 +245,19 @@ pub const edit_mode_radio: RadioButtons = .{
     .pos = Vec2.init(20, 20),
     .radio_size = Vec2.init(15, 15),
     .offset = Vec2.init(0, 20),
+};
+
+pub const game_speed_slider: Slider = .{
+    .container = &game_speed_box,
+    .pos = Vec2.init(10, 10),
+    .size = Vec2.init(sidebar_width - 60 - 100, 20),
+    .text_left = "",
+    .text_right = "",
+};
+
+pub const game_speed_spinner: Spinner = .{
+    .container = &game_speed_box,
+    .pos = Vec2.init(game_speed_slider.size.x + 20, 10),
+    .size = Vec2.init(game_speed_box.size.x - game_speed_slider.size.x - 30, 20),
+    .text = "",
 };

@@ -1,11 +1,13 @@
 const std = @import("std");
 const math = std.math;
+const Thread = std.Thread;
 
 const rl = @import("raylib");
 const rg = @import("raygui");
 
 const Gol = @import("game-of-life.zig");
 const ui = @import("ui.zig");
+const game_thread = @import("game-thread.zig");
 
 const Color = rl.Color;
 const Vec2 = rl.Vector2;
@@ -38,14 +40,20 @@ pub fn main() !void {
 
     var holding_grid = false;
     var holding_sidebar = false;
-    var game_paused = false;
+    var editing_game_speed = false;
 
     var selection: ?Rect = null;
 
     ui.updateSidebar(screen_size);
 
+    var game_speed: i32 = 60;
+
     const EditMode = enum { Move, Edit, Select };
     var edit_mode: EditMode = .Move;
+
+    const thread = try Thread.spawn(.{}, game_thread.run, .{&game});
+    defer thread.join();
+    defer game_thread.should_end = true;
 
     while (!rl.windowShouldClose()) {
         if (updateScreenSize()) {
@@ -57,11 +65,7 @@ pub fn main() !void {
         const scroll = rl.getMouseWheelMove();
 
         if (rl.isKeyPressed(.p)) {
-            game_paused = !game_paused;
-        }
-
-        if (!game_paused) {
-            game.next();
+            game_thread.game_paused = !game_thread.game_paused;
         }
 
         if (edit_mode == .Move or rl.isKeyDown(.left_control)) {
@@ -138,14 +142,38 @@ pub fn main() !void {
             ui.drawContainer(ui.sidebar);
             ui.drawContainer(ui.controls);
 
-            ui.drawButton(ui.clear_button, .{ .game = &game });
-            ui.drawButton(ui.randomize_button, .{ .game = &game, .rng = rng });
-            if (game_paused) {
-                ui.drawButton(ui.unpause_button, .{ .paused = &game_paused });
+            ui.drawButton(ui.clear_button, .{ .clear = &game_thread.clear });
+            ui.drawButton(ui.randomize_button, .{ .randomize = &game_thread.randomize });
+            if (game_thread.game_paused) {
+                ui.drawButton(ui.unpause_button, .{ .paused = &game_thread.game_paused });
+                ui.drawButton(ui.step_button, .{ .step = &game_thread.step });
             } else {
-                ui.drawButton(ui.pause_button, .{ .paused = &game_paused });
+                ui.drawButton(ui.pause_button, .{ .paused = &game_thread.game_paused });
+                rg.guiSetState(@intFromEnum(rg.GuiState.state_disabled));
+                ui.drawButton(ui.step_button, .{ .step = &game_thread.step });
+                rg.guiSetState(@intFromEnum(rg.GuiState.state_normal));
             }
-            ui.drawButton(ui.step_button, .{ .game = &game });
+
+            ui.drawContainer(ui.game_speed_box);
+            var game_speed_f: f32 = @floatFromInt(@max(game_speed, 1)); // @max is needed here so the spinner later on can be zero
+            if (ui.drawSlider(ui.game_speed_slider, &game_speed_f, 1, 240)) {
+                game_speed = @intFromFloat(game_speed_f);
+            }
+            if (ui.drawSpinner(ui.game_speed_spinner, &game_speed, 0, 240, editing_game_speed)) {
+                editing_game_speed = !editing_game_speed;
+            }
+
+            game_thread.time_target_ns = std.time.ns_per_s / @as(u64, @intCast(@max(game_speed, 1)));
+
+            // TODO: make average gen time calculation not suck
+            const avg_time = blk: {
+                var sum: u64 = 0;
+                for (game_thread.times) |time| {
+                    sum += time;
+                }
+                break :blk @as(f64, @floatFromInt(sum)) / std.time.ns_per_us / game_thread.times.len;
+            };
+            rl.drawText(rl.textFormat("Avg gen time: %.2fus", .{avg_time}), 90, 20, 17, .dark_gray);
 
             edit_mode = ui.drawRadioButtons(ui.edit_mode_radio, edit_mode);
         }
