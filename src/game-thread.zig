@@ -14,7 +14,7 @@ pub var time_target_ns: u64 = std.time.ns_per_s / 60;
 pub var times: [256]u64 = std.mem.zeroes([256]u64);
 var time_idx: u8 = 0;
 
-pub fn run(game: *Gol) !void {
+pub fn run(game: Gol) !void {
     var random = std.Random.DefaultPrng.init(blk: {
         var seed: u64 = undefined;
         try std.posix.getrandom(std.mem.asBytes(&seed));

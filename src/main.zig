@@ -1,11 +1,13 @@
 const std = @import("std");
 const math = std.math;
 const Thread = std.Thread;
+const Allocator = std.mem.Allocator;
 
 const rl = @import("raylib");
 const rg = @import("raygui");
 
 const Gol = @import("game-of-life.zig");
+const BasicGame = @import("games/basic.zig");
 const ui = @import("ui.zig");
 const game_thread = @import("game-thread.zig");
 
@@ -29,6 +31,9 @@ pub fn main() !void {
         .zoom = 20,
     };
 
+    var allocator = std.heap.DebugAllocator(.{}).init;
+    const ally = allocator.allocator();
+
     var random = std.Random.DefaultPrng.init(blk: {
         var seed: u64 = undefined;
         try std.posix.getrandom(std.mem.asBytes(&seed));
@@ -36,7 +41,8 @@ pub fn main() !void {
     });
     const rng = random.random();
 
-    var game = Gol.init(rng);
+    var game = BasicGame.init(rng);
+    const gol = game.gol();
 
     var holding_grid = false;
     var holding_sidebar = false;
@@ -51,7 +57,7 @@ pub fn main() !void {
     const EditMode = enum { Move, Edit, Select };
     var edit_mode: EditMode = .Move;
 
-    const thread = try Thread.spawn(.{}, game_thread.run, .{&game});
+    const thread = try Thread.spawn(.{}, game_thread.run, .{gol});
     defer thread.join();
     defer game_thread.should_end = true;
 
@@ -92,17 +98,8 @@ pub fn main() !void {
         } else if (edit_mode == .Edit) blk: {
             // Edit a tile
             // -----------
-            const new_tile_state = if (rl.isMouseButtonDown(.left)) true else if (rl.isMouseButtonDown(.right)) false else break :blk;
-
-            const pointer_tile = .{
-                .x = @as(i32, @intFromFloat(@floor(pointer_pos.x))),
-                .y = @as(i32, @intFromFloat(@floor(pointer_pos.y))),
-            };
-            if (pointer_tile.x >= 0 and pointer_tile.x < Gol.x_len and
-                pointer_tile.y >= 0 and pointer_tile.y < Gol.y_len)
-            {
-                game.getBoard()[@intCast(pointer_tile.y)][@intCast(pointer_tile.x)] = new_tile_state;
-            }
+            const tile = if (rl.isMouseButtonDown(.left)) true else if (rl.isMouseButtonDown(.right)) false else break :blk;
+            gol.setTile(@intFromFloat(@floor(pointer_pos.x)), @intFromFloat(@floor(pointer_pos.y)), tile);
         } else if (edit_mode == .Select) {
             // Modify the selection
             // --------------------
@@ -126,7 +123,7 @@ pub fn main() !void {
 
             camera.begin();
             {
-                drawTiles(camera, game.getBoard(), selection);
+                drawTiles(camera, gol, selection, ally);
 
                 if (camera.zoom > 5) {
                     drawGrid(camera);
@@ -216,42 +213,34 @@ fn drawGrid(camera: rl.Camera2D) void {
     }
 }
 
-fn drawTiles(camera: rl.Camera2D, board: *Gol.Board, selection: ?Rect) void {
+fn drawTiles(camera: rl.Camera2D, gol: Gol, selection: ?Rect, ally: Allocator) void {
     const other_corner = otherScreenCorner(camera);
-    const start_x: usize = math.lossyCast(usize, @floor(camera.target.x));
-    const start_y: usize = math.lossyCast(usize, @floor(camera.target.y));
-    const end_x: usize = math.lossyCast(usize, @ceil(@min(other_corner.x, Gol.x_len)));
-    const end_y: usize = math.lossyCast(usize, @ceil(@min(other_corner.y, Gol.y_len)));
+
+    const start_x = math.lossyCast(isize, @floor(camera.target.x));
+    const start_y = math.lossyCast(isize, @floor(camera.target.y));
+    const end_x = math.lossyCast(isize, @ceil(other_corner.x));
+    const end_y = math.lossyCast(isize, @ceil(other_corner.y));
+
+    const tiles = gol.getTiles(start_x, start_y, end_x, end_y, ally);
+    defer tiles.deinit();
 
     if (selection) |select| {
         const sel = normalizeRect(select);
-        const sel_start_x: usize = @intFromFloat(@floor(@max(camera.target.x, sel.x, 0)));
-        const sel_start_y: usize = @intFromFloat(@floor(@max(camera.target.y, sel.y, 0)));
-        const sel_end_x: usize = math.lossyCast(usize, @ceil(@min(sel.x + sel.width, other_corner.x, Gol.x_len)));
-        const sel_end_y: usize = math.lossyCast(usize, @ceil(@min(sel.y + sel.height, other_corner.y, Gol.y_len)));
+        const sel_start_x = math.lossyCast(isize, @floor(@max(camera.target.x, sel.x)));
+        const sel_start_y = math.lossyCast(isize, @floor(@max(camera.target.y, sel.y)));
+        const sel_end_x = math.lossyCast(isize, @ceil(@min(sel.x + sel.width, other_corner.x)));
+        const sel_end_y = math.lossyCast(isize, @ceil(@min(sel.y + sel.height, other_corner.y)));
 
-        var x = start_x;
-        while (x < end_x) : (x += 1) {
-            var y = start_y;
-            while (y < end_y) : (y += 1) {
-                if (board[y][x]) {
-                    if (sel_start_x <= x and x < sel_end_x and sel_start_y <= y and y < sel_end_y) {
-                        rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, .blue);
-                    } else {
-                        rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, .red);
-                    }
-                }
+        for (tiles.items) |tile| {
+            if (sel_start_x <= tile.x and tile.x < sel_end_x and sel_start_y <= tile.y and tile.y < sel_end_y) {
+                rl.drawRectangle(@intCast(tile.x), @intCast(tile.y), 1, 1, .blue);
+            } else {
+                rl.drawRectangle(@intCast(tile.x), @intCast(tile.y), 1, 1, .red);
             }
         }
     } else {
-        var x = start_x;
-        while (x < end_x) : (x += 1) {
-            var y = start_y;
-            while (y < end_y) : (y += 1) {
-                if (board[y][x]) {
-                    rl.drawRectangle(@intCast(x), @intCast(y), 1, 1, .red);
-                }
-            }
+        for (tiles.items) |tile| {
+            rl.drawRectangle(@intCast(tile.x), @intCast(tile.y), 1, 1, .red);
         }
     }
 }

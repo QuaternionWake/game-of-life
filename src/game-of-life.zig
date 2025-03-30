@@ -1,204 +1,82 @@
 const std = @import("std");
 const Random = std.Random;
+const Allocator = std.mem.Allocator;
 
-pub const x_len = 256;
-pub const y_len = 256;
-pub const Board = [y_len][x_len]bool;
-
-front_board: Board = undefined,
-back_board: Board = undefined,
-flipped: bool = false,
+pub const Tile = struct { x: isize, y: isize };
+pub const TileList = std.ArrayList(Tile);
 
 const Self = @This();
 
-pub fn init(rng: Random) Self {
-    var self = Self{};
-    self.randomize(rng);
-    return self;
-}
+ptr: *anyopaque,
+vtable: *const VTable,
 
-pub fn clear(self: *Self) void {
-    @memset(std.mem.asBytes(self.getBoard()), 0);
-}
+const VTable = struct {
+    next: *const fn (ptr: *anyopaque) void,
+    clear: *const fn (ptr: *anyopaque) void,
+    randomize: *const fn (ptr: *anyopaque, rng: Random) void,
+    setTile: *const fn (ptr: *anyopaque, x: isize, y: isize, tile: bool) void,
+    getTiles: *const fn (ptr: *anyopaque, x_start: isize, y_start: isize, x_end: isize, y_end: isize, ally: Allocator) TileList,
+};
 
-pub fn randomize(self: *Self, rng: Random) void {
-    const board = self.getBoard();
-    for (board) |*row| {
-        for (row) |*tile| {
-            tile.* = rng.boolean();
+pub fn init(
+    ptr: anytype,
+    comptime nextFn: *const fn (ptr: @TypeOf(ptr)) void,
+    comptime clearFn: *const fn (ptr: @TypeOf(ptr)) void,
+    comptime randomizeFn: *const fn (ptr: @TypeOf(ptr), rng: Random) void,
+    comptime setTileFn: *const fn (ptr: @TypeOf(ptr), x: isize, y: isize, tile: bool) void,
+    comptime getTilesFn: *const fn (ptr: @TypeOf(ptr), x_start: isize, y_start: isize, x_end: isize, y_end: isize, ally: Allocator) TileList,
+) Self {
+    const Ptr = @TypeOf(ptr);
+    const funs = struct {
+        fn next(pointer: *anyopaque) void {
+            const self: Ptr = @ptrCast(@alignCast(pointer));
+            nextFn(self);
         }
-    }
-}
-
-pub fn next(self: *Self) void {
-    self.flipped = !self.flipped;
-    const read_board = self.getInactiveBoard();
-    const write_board = self.getBoard();
-    for (1..y_len - 1) |y| {
-        for (1..x_len - 1) |x| {
-            write_board[y][x] = nextTile(read_board, x, y);
+        fn clear(pointer: *anyopaque) void {
+            const self: Ptr = @ptrCast(@alignCast(pointer));
+            clearFn(self);
         }
-    }
-    for (1..x_len - 1) |x| {
-        write_board[0][x] = nextTileEdgeT(read_board, x);
-    }
-    for (1..x_len - 1) |x| {
-        write_board[y_len - 1][x] = nextTileEdgeB(read_board, x);
-    }
-    for (1..y_len - 1) |y| {
-        write_board[y][0] = nextTileEdgeR(read_board, y);
-    }
-    for (1..y_len - 1) |y| {
-        write_board[y][x_len - 1] = nextTileEdgeL(read_board, y);
-    }
-    write_board[0][0] = nextTileCornerTL(read_board);
-    write_board[0][x_len - 1] = nextTileCornerTR(read_board);
-    write_board[y_len - 1][0] = nextTileCornerTL(read_board);
-    write_board[y_len - 1][x_len - 1] = nextTileCornerTL(read_board);
+        fn randomize(pointer: *anyopaque, rng: Random) void {
+            const self: Ptr = @ptrCast(@alignCast(pointer));
+            randomizeFn(self, rng);
+        }
+        fn setTile(pointer: *anyopaque, x: isize, y: isize, tile: bool) void {
+            const self: Ptr = @ptrCast(@alignCast(pointer));
+            setTileFn(self, x, y, tile);
+        }
+        fn getTiles(pointer: *anyopaque, x_start: isize, y_start: isize, x_end: isize, y_end: isize, ally: Allocator) TileList {
+            const self: Ptr = @ptrCast(@alignCast(pointer));
+            return getTilesFn(self, x_start, y_start, x_end, y_end, ally);
+        }
+    };
+    return .{
+        .ptr = ptr,
+        .vtable = &.{
+            .next = funs.next,
+            .clear = funs.clear,
+            .randomize = funs.randomize,
+            .setTile = funs.setTile,
+            .getTiles = funs.getTiles,
+        },
+    };
 }
 
-pub fn getBoard(self: *Self) *Board {
-    if (self.flipped) {
-        return &self.back_board;
-    } else {
-        return &self.front_board;
-    }
+pub inline fn next(self: Self) void {
+    self.vtable.next(self.ptr);
 }
 
-pub fn getInactiveBoard(self: *Self) *Board {
-    if (self.flipped) {
-        return &self.front_board;
-    } else {
-        return &self.back_board;
-    }
+pub inline fn clear(self: Self) void {
+    self.vtable.clear(self.ptr);
 }
 
-fn nextTile(board: *const Board, x: usize, y: usize) bool {
-    const count =
-        @as(u8, @intFromBool(board[y - 1][x - 1])) +
-        @as(u8, @intFromBool(board[y - 1][x + 0])) +
-        @as(u8, @intFromBool(board[y - 1][x + 1])) +
-        @as(u8, @intFromBool(board[y + 0][x - 1])) +
-        @as(u8, @intFromBool(board[y + 0][x + 1])) +
-        @as(u8, @intFromBool(board[y + 1][x - 1])) +
-        @as(u8, @intFromBool(board[y + 1][x + 0])) +
-        @as(u8, @intFromBool(board[y + 1][x + 1]));
-
-    if (board[y][x]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
-    }
+pub inline fn randomize(self: Self, rng: Random) void {
+    self.vtable.randomize(self.ptr, rng);
 }
 
-fn nextTileEdgeT(board: *const Board, x: usize) bool {
-    const count =
-        @as(u8, @intFromBool(board[0][x - 1])) +
-        @as(u8, @intFromBool(board[0][x + 1])) +
-        @as(u8, @intFromBool(board[1][x - 1])) +
-        @as(u8, @intFromBool(board[1][x + 0])) +
-        @as(u8, @intFromBool(board[1][x + 1]));
-
-    if (board[0][x]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
-    }
+pub inline fn setTile(self: Self, x: isize, y: isize, tile: bool) void {
+    self.vtable.setTile(self.ptr, x, y, tile);
 }
 
-fn nextTileEdgeB(board: *const Board, x: usize) bool {
-    const count =
-        @as(u8, @intFromBool(board[y_len - 2][x - 1])) +
-        @as(u8, @intFromBool(board[y_len - 2][x + 0])) +
-        @as(u8, @intFromBool(board[y_len - 2][x + 1])) +
-        @as(u8, @intFromBool(board[y_len - 1][x - 1])) +
-        @as(u8, @intFromBool(board[y_len - 1][x + 1]));
-
-    if (board[0][x]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
-    }
-}
-
-fn nextTileEdgeR(board: *const Board, y: usize) bool {
-    const count =
-        @as(u8, @intFromBool(board[y - 1][0])) +
-        @as(u8, @intFromBool(board[y - 1][1])) +
-        @as(u8, @intFromBool(board[y + 0][1])) +
-        @as(u8, @intFromBool(board[y + 1][0])) +
-        @as(u8, @intFromBool(board[y + 1][1]));
-
-    if (board[y][0]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
-    }
-}
-
-fn nextTileEdgeL(board: *const Board, y: usize) bool {
-    const count =
-        @as(u8, @intFromBool(board[y - 1][x_len - 2])) +
-        @as(u8, @intFromBool(board[y - 1][x_len - 1])) +
-        @as(u8, @intFromBool(board[y + 0][x_len - 2])) +
-        @as(u8, @intFromBool(board[y + 1][x_len - 2])) +
-        @as(u8, @intFromBool(board[y + 1][x_len - 1]));
-
-    if (board[y][x_len - 1]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
-    }
-}
-
-fn nextTileCornerTL(board: *const Board) bool {
-    const count =
-        @as(u8, @intFromBool(board[0][1])) +
-        @as(u8, @intFromBool(board[1][0])) +
-        @as(u8, @intFromBool(board[1][1]));
-
-    if (board[0][0]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
-    }
-}
-
-fn nextTileCornerTR(board: *const Board) bool {
-    const count =
-        @as(u8, @intFromBool(board[0][x_len - 2])) +
-        @as(u8, @intFromBool(board[1][x_len - 2])) +
-        @as(u8, @intFromBool(board[1][x_len - 1]));
-
-    if (board[0][x_len - 1]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
-    }
-}
-
-fn nextTileCornerBL(board: *const Board) bool {
-    const count =
-        @as(u8, @intFromBool(board[y_len - 2][0])) +
-        @as(u8, @intFromBool(board[y_len - 2][1])) +
-        @as(u8, @intFromBool(board[y_len - 1][1]));
-
-    if (board[y_len - 1][0]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
-    }
-}
-
-fn nextTileCornerBR(board: *const Board) bool {
-    const count =
-        @as(u8, @intFromBool(board[y_len - 2][x_len - 2])) +
-        @as(u8, @intFromBool(board[y_len - 2][x_len - 1])) +
-        @as(u8, @intFromBool(board[y_len - 1][x_len - 1]));
-
-    if (board[y_len - 1][x_len - 1]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
-    }
+pub inline fn getTiles(self: Self, x_start: isize, y_start: isize, x_end: isize, y_end: isize, ally: Allocator) TileList {
+    return self.vtable.getTiles(self.ptr, x_start, y_start, x_end, y_end, ally);
 }
