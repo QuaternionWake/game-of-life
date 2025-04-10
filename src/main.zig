@@ -8,6 +8,7 @@ const rg = @import("raygui");
 
 const Gol = @import("game-of-life.zig");
 const BasicGame = @import("games/basic.zig");
+const HashsetGame = @import("games/hashset.zig");
 const ui = @import("ui.zig");
 const game_thread = @import("game-thread.zig");
 
@@ -41,7 +42,8 @@ pub fn main() !void {
     });
     const rng = random.random();
 
-    var game = BasicGame.init(rng);
+    // var game = BasicGame.init(rng);
+    var game = HashsetGame.init(rng, ally);
     const gol = game.gol();
 
     var holding_grid = false;
