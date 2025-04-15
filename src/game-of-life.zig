@@ -15,6 +15,7 @@ const VTable = struct {
     clear: *const fn (ptr: *anyopaque) void,
     randomize: *const fn (ptr: *anyopaque, rng: Random) void,
     setTile: *const fn (ptr: *anyopaque, x: isize, y: isize, tile: bool) void,
+    setTiles: *const fn (ptr: *anyopaque, x: isize, y: isize, tiles: []Tile) void,
     getTiles: *const fn (ptr: *anyopaque, x_start: isize, y_start: isize, x_end: isize, y_end: isize, ally: Allocator) TileList,
 };
 
@@ -24,6 +25,7 @@ pub fn init(
     comptime clearFn: *const fn (ptr: @TypeOf(ptr)) void,
     comptime randomizeFn: *const fn (ptr: @TypeOf(ptr), rng: Random) void,
     comptime setTileFn: *const fn (ptr: @TypeOf(ptr), x: isize, y: isize, tile: bool) void,
+    comptime setTilesFn: *const fn (ptr: @TypeOf(ptr), x: isize, y: isize, tiles: []Tile) void,
     comptime getTilesFn: *const fn (ptr: @TypeOf(ptr), x_start: isize, y_start: isize, x_end: isize, y_end: isize, ally: Allocator) TileList,
 ) Self {
     const Ptr = @TypeOf(ptr);
@@ -44,6 +46,10 @@ pub fn init(
             const self: Ptr = @ptrCast(@alignCast(pointer));
             setTileFn(self, x, y, tile);
         }
+        fn setTiles(pointer: *anyopaque, x: isize, y: isize, tiles: []Tile) void {
+            const self: Ptr = @ptrCast(@alignCast(pointer));
+            setTilesFn(self, x, y, tiles);
+        }
         fn getTiles(pointer: *anyopaque, x_start: isize, y_start: isize, x_end: isize, y_end: isize, ally: Allocator) TileList {
             const self: Ptr = @ptrCast(@alignCast(pointer));
             return getTilesFn(self, x_start, y_start, x_end, y_end, ally);
@@ -56,6 +62,7 @@ pub fn init(
             .clear = funs.clear,
             .randomize = funs.randomize,
             .setTile = funs.setTile,
+            .setTiles = funs.setTiles,
             .getTiles = funs.getTiles,
         },
     };
@@ -75,6 +82,10 @@ pub inline fn randomize(self: Self, rng: Random) void {
 
 pub inline fn setTile(self: Self, x: isize, y: isize, tile: bool) void {
     self.vtable.setTile(self.ptr, x, y, tile);
+}
+
+pub inline fn setTiles(self: Self, x: isize, y: isize, tiles: []Tile) void {
+    self.vtable.setTiles(self.ptr, x, y, tiles);
 }
 
 pub inline fn getTiles(self: Self, x_start: isize, y_start: isize, x_end: isize, y_end: isize, ally: Allocator) TileList {

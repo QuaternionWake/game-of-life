@@ -7,6 +7,7 @@ const rl = @import("raylib");
 const rg = @import("raygui");
 
 const Gol = @import("game-of-life.zig");
+const TileList = Gol.TileList;
 const BasicGame = @import("games/basic.zig");
 const HashsetGame = @import("games/hashset.zig");
 const ui = @import("ui.zig");
@@ -46,6 +47,8 @@ pub fn main() !void {
     var game = HashsetGame.init(rng, ally);
     const gol = game.gol();
 
+    var clipboard = TileList.init(ally);
+
     var holding_grid = false;
     var holding_sidebar = false;
     var editing_game_speed = false;
@@ -71,10 +74,6 @@ pub fn main() !void {
         const mouse_pos = rl.getMousePosition();
         const pointer_pos = getPointerPos(mouse_pos, camera);
         const scroll = rl.getMouseWheelMove();
-
-        if (rl.isKeyPressed(.p)) {
-            game_thread.game_paused = !game_thread.game_paused;
-        }
 
         if (edit_mode == .Move or rl.isKeyDown(.left_control)) {
             // Move and zoom the camera
@@ -114,7 +113,29 @@ pub fn main() !void {
                 } else {
                     selection = Rect.init(pointer_pos.x, pointer_pos.y, 0, 0);
                 }
-            } else {
+            }
+            if (rl.isKeyPressed(.c)) {
+                if (selection) |sel| {
+                    const s = normalizeRect(sel);
+                    const start_x = math.lossyCast(isize, @floor(s.x));
+                    const start_y = math.lossyCast(isize, @floor(s.y));
+                    const end_x = math.lossyCast(isize, @ceil(s.x + s.width));
+                    const end_y = math.lossyCast(isize, @ceil(s.y + s.height));
+
+                    clipboard.deinit();
+                    clipboard = gol.getTiles(start_x, start_y, end_x, end_y, ally);
+                    for (clipboard.items) |*tile| {
+                        tile.* = .{
+                            .x = tile.x - @as(isize, @intFromFloat(pointer_pos.x)),
+                            .y = tile.y - @as(isize, @intFromFloat(pointer_pos.y)),
+                        };
+                    }
+                }
+            }
+            if (rl.isKeyPressed(.p)) {
+                gol.setTiles(@intFromFloat(pointer_pos.x), @intFromFloat(pointer_pos.y), clipboard.items);
+            }
+            if (rl.isKeyPressed(.d)) {
                 selection = null;
             }
         }

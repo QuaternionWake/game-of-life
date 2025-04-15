@@ -4,6 +4,7 @@ const Random = std.Random;
 const Allocator = std.mem.Allocator;
 
 const Gol = @import("../game-of-life.zig");
+const Tile = Gol.Tile;
 const TileList = Gol.TileList;
 
 const x_len = 256;
@@ -29,6 +30,7 @@ pub fn gol(self: *Self) Gol {
         clear,
         randomize,
         setTile,
+        setTiles,
         getTiles,
     );
 }
@@ -50,6 +52,16 @@ fn setTile(self: *Self, x: isize, y: isize, tile: bool) void {
     const board = self.getBoard();
     if (x >= 0 and x < x_len and y > 0 and y < y_len) {
         board[@intCast(y)][@intCast(x)] = tile;
+    }
+}
+
+fn setTiles(self: *Self, x: isize, y: isize, tiles: []Tile) void {
+    const board = self.getBoard();
+    for (tiles) |orig_tile| {
+        const tile = .{ .x = orig_tile.x + x, .y = orig_tile.y + y };
+        if (tile.x >= 0 and tile.x < x_len and tile.y > 0 and tile.y < y_len) {
+            board[@intCast(tile.y)][@intCast(tile.x)] = true;
+        }
     }
 }
 

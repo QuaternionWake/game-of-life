@@ -5,6 +5,7 @@ const Allocator = std.mem.Allocator;
 const Mutex = std.Thread.Mutex;
 
 const Gol = @import("../game-of-life.zig");
+const Tile = Gol.Tile;
 const TileList = Gol.TileList;
 
 const Board = std.AutoHashMap(Gol.Tile, void);
@@ -32,6 +33,7 @@ pub fn gol(self: *Self) Gol {
         clear,
         randomize,
         setTile,
+        setTiles,
         getTiles,
     );
 }
@@ -60,6 +62,15 @@ fn setTile(self: *Self, x: isize, y: isize, tile: bool) void {
         self.board.put(.{ .x = x, .y = y }, {}) catch {};
     } else {
         _ = self.board.remove(.{ .x = x, .y = y });
+    }
+}
+
+fn setTiles(self: *Self, x: isize, y: isize, tiles: []Tile) void {
+    self.mutex.lock();
+    defer self.mutex.unlock();
+    for (tiles) |orig_tile| {
+        const tile = Tile{ .x = orig_tile.x + x, .y = orig_tile.y + y };
+        self.board.put(tile, {}) catch {};
     }
 }
 
