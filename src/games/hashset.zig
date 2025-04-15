@@ -3,6 +3,7 @@ const math = std.math;
 const Random = std.Random;
 const Allocator = std.mem.Allocator;
 const Mutex = std.Thread.Mutex;
+const RwLock = std.Thread.RwLock;
 
 const Gol = @import("../game-of-life.zig");
 const Tile = Gol.Tile;
@@ -13,7 +14,8 @@ const Board = std.AutoHashMap(Gol.Tile, void);
 board: Board,
 ally: Allocator,
 
-mutex: Mutex = .{},
+rw_lock: RwLock = .{},
+lock_upgrade_mutex: Mutex = .{},
 
 const Self = @This();
 
@@ -39,14 +41,14 @@ pub fn gol(self: *Self) Gol {
 }
 
 fn clear(self: *Self) void {
-    self.mutex.lock();
-    defer self.mutex.unlock();
+    self.lock();
+    defer self.unlock();
     self.board.clearRetainingCapacity();
 }
 
 fn randomize(self: *Self, rng: Random) void {
-    self.mutex.lock();
-    defer self.mutex.unlock();
+    self.lock();
+    defer self.unlock();
     self.board.clearRetainingCapacity();
     for (0..(1024 * 32)) |_| {
         const x: isize = @intFromFloat(@floor(rng.floatNorm(f64) * 128));
@@ -56,8 +58,8 @@ fn randomize(self: *Self, rng: Random) void {
 }
 
 fn setTile(self: *Self, x: isize, y: isize, tile: bool) void {
-    self.mutex.lock();
-    defer self.mutex.unlock();
+    self.lock();
+    defer self.unlock();
     if (tile) {
         self.board.put(.{ .x = x, .y = y }, {}) catch {};
     } else {
@@ -66,8 +68,8 @@ fn setTile(self: *Self, x: isize, y: isize, tile: bool) void {
 }
 
 fn setTiles(self: *Self, x: isize, y: isize, tiles: []Tile) void {
-    self.mutex.lock();
-    defer self.mutex.unlock();
+    self.lock();
+    defer self.unlock();
     for (tiles) |orig_tile| {
         const tile = Tile{ .x = orig_tile.x + x, .y = orig_tile.y + y };
         self.board.put(tile, {}) catch {};
@@ -77,8 +79,8 @@ fn setTiles(self: *Self, x: isize, y: isize, tiles: []Tile) void {
 fn getTiles(self: *Self, x_start: isize, y_start: isize, x_end: isize, y_end: isize, ally: Allocator) Gol.TileList {
     var tiles = Gol.TileList.init(ally);
 
-    self.mutex.lock();
-    defer self.mutex.unlock();
+    self.lockShared();
+    defer self.unlockShared();
 
     var iter = self.board.iterator();
     while (iter.next()) |tile| {
@@ -93,6 +95,8 @@ fn getTiles(self: *Self, x_start: isize, y_start: isize, x_end: isize, y_end: is
 
 fn next(self: *Self) void {
     var new_board = Board.init(self.ally);
+
+    self.lockUpgradable();
     var check_board = makeCheckBoard(self.board, self.ally);
     defer check_board.deinit();
 
@@ -104,12 +108,12 @@ fn next(self: *Self) void {
             new_board.put(.{ .x = x, .y = y }, {}) catch {};
         }
     }
+
+    self.lockUpgrade();
+    defer self.unlock();
+
     var old_board = self.board;
     self.board = new_board;
-
-    self.mutex.lock();
-    defer self.mutex.unlock();
-
     old_board.deinit();
 }
 
@@ -148,4 +152,33 @@ fn nextTile(board: Board, x: isize, y: isize) bool {
     } else {
         return count == 3;
     }
+}
+
+fn lock(self: *Self) void {
+    self.lock_upgrade_mutex.lock();
+    self.rw_lock.lock();
+    self.lock_upgrade_mutex.unlock();
+}
+
+fn lockShared(self: *Self) void {
+    self.rw_lock.lockShared();
+}
+
+fn lockUpgradable(self: *Self) void {
+    self.lock_upgrade_mutex.lock();
+    self.rw_lock.lockShared();
+}
+
+fn lockUpgrade(self: *Self) void {
+    self.rw_lock.unlockShared();
+    self.rw_lock.lock();
+    self.lock_upgrade_mutex.unlock();
+}
+
+fn unlock(self: *Self) void {
+    self.rw_lock.unlock();
+}
+
+fn unlockShared(self: *Self) void {
+    self.rw_lock.unlockShared();
 }
