@@ -54,6 +54,7 @@ pub fn main() !void {
     var editing_game_speed = false;
 
     var selection: ?Rect = null;
+    var held_corner: ?Corner = null;
 
     ui.updateSidebar(screen_size);
 
@@ -72,7 +73,9 @@ pub fn main() !void {
         }
 
         const mouse_pos = rl.getMousePosition();
+        const mouse_delta = rl.getMouseDelta();
         const pointer_pos = getPointerPos(mouse_pos, camera);
+        const pointer_delta = getPointerDelta(mouse_delta, camera);
         const scroll = rl.getMouseWheelMove();
 
         if (edit_mode == .Move or rl.isKeyDown(.left_control)) {
@@ -104,19 +107,37 @@ pub fn main() !void {
         } else if (edit_mode == .Select) {
             // Modify the selection
             // --------------------
-            if (rl.isMouseButtonDown(.left)) {
-                if (selection) |*s| {
-                    const pos = Vec2.init(s.x, s.y);
-                    const size = pointer_pos.subtract(pos);
-                    s.width = size.x;
-                    s.height = size.y;
-                } else {
-                    selection = Rect.init(pointer_pos.x, pointer_pos.y, 0, 0);
+            if (rl.isMouseButtonPressed(.left)) blk: {
+                if (selection) |s| {
+                    if (grabCorner(pointer_pos, s, camera)) |c| {
+                        held_corner = c;
+                        break :blk;
+                    }
                 }
+                selection = Rect.init(pointer_pos.x, pointer_pos.y, 0, 0);
+                held_corner = .BR;
+            }
+            if (rl.isMouseButtonDown(.left)) blk: {
+                if (selection) |*s| {
+                    if (held_corner) |c| {
+                        held_corner = resizeSelection(pointer_delta, s, c);
+                        break :blk;
+                    }
+                }
+                selection = Rect.init(pointer_pos.x, pointer_pos.y, 0, 0);
+                held_corner = .BR;
+            } else if (rl.isMouseButtonDown(.right)) {
+                if (selection) |*s| {
+                    s.x += pointer_delta.x;
+                    s.y += pointer_delta.y;
+                }
+            }
+            if (!rl.isMouseButtonDown(.left)) {
+                held_corner = null;
             }
             if (rl.isKeyPressed(.c)) {
                 if (selection) |sel| {
-                    const s = normalizeRect(sel);
+                    const s = sel;
                     const start_x = math.lossyCast(isize, @floor(s.x));
                     const start_y = math.lossyCast(isize, @floor(s.y));
                     const end_x = math.lossyCast(isize, @ceil(s.x + s.width));
@@ -137,7 +158,12 @@ pub fn main() !void {
             }
             if (rl.isKeyPressed(.d)) {
                 selection = null;
+                held_corner = null;
             }
+        }
+        if (edit_mode != .Select) {
+            selection = null;
+            held_corner = null;
         }
 
         rl.beginDrawing();
@@ -154,7 +180,18 @@ pub fn main() !void {
                 rl.drawRectangle(-1, -1, 2, 2, Color.sky_blue.fade(0.5));
 
                 if (selection) |s| {
-                    rl.drawRectangleLinesEx(normalizeRect(s), 2 / camera.zoom, .sky_blue);
+                    rl.drawRectangleLinesEx(s, 2 / camera.zoom, .sky_blue);
+                    if (if (held_corner) |c| c else grabCorner(pointer_pos, s, camera)) |c| {
+                        const center = getCornerCoords(s, c);
+                        const color: Color = switch (c) {
+                            .TL => .maroon,
+                            .TR => .green,
+                            .BL => .magenta,
+                            .BR => .orange,
+                        };
+                        const size = 6 / camera.zoom;
+                        rl.drawRectangleV(center.subtractValue(size / 2), Vec2.init(size, size), color);
+                    }
                 }
             }
             camera.end();
@@ -205,6 +242,10 @@ fn getPointerPos(mouse_pos: Vec2, camera: rl.Camera2D) Vec2 {
     return camera.target.add(mouse_pos.scale(1 / camera.zoom));
 }
 
+fn getPointerDelta(mouse_delta: Vec2, camera: rl.Camera2D) Vec2 {
+    return mouse_delta.scale(1 / camera.zoom);
+}
+
 fn normalizeRect(rect: Rect) Rect {
     var res = rect;
     if (rect.width < 0) {
@@ -216,6 +257,90 @@ fn normalizeRect(rect: Rect) Rect {
         res.height = -rect.height;
     }
     return res;
+}
+
+fn grabCorner(pointer_pos: Vec2, selection: Rect, camera: rl.Camera2D) ?Corner {
+    const corner_tl = Vec2.init(selection.x, selection.y);
+    const corner_tr = Vec2.init(selection.x + selection.width, selection.y);
+    const corner_bl = Vec2.init(selection.x, selection.y + selection.height);
+    const corner_br = Vec2.init(selection.x + selection.width, selection.y + selection.height);
+    const dist_tl = pointer_pos.distanceSqr(corner_tl);
+    const dist_tr = pointer_pos.distanceSqr(corner_tr);
+    const dist_bl = pointer_pos.distanceSqr(corner_bl);
+    const dist_br = pointer_pos.distanceSqr(corner_br);
+    const dists: [4]f32 = .{ dist_tl, dist_tr, dist_bl, dist_br };
+    const minidx = std.mem.indexOfMin(f32, &dists);
+    if (dists[minidx] < 100 / math.pow(f32, camera.zoom, 2)) {
+        return switch (minidx) {
+            0 => .TL,
+            1 => .TR,
+            2 => .BL,
+            3 => .BR,
+            else => null,
+        };
+    } else return null;
+}
+
+fn resizeSelection(pointer_delta: Vec2, selection: *Rect, held_corner: Corner) Corner {
+    const pos = Vec2.init(selection.x, selection.y);
+    const size = Vec2.init(selection.width, selection.height);
+    const new_pos_x = switch (held_corner) {
+        .TL, .BL => pos.x + pointer_delta.x,
+        .TR, .BR => pos.x,
+    };
+    const new_pos_y = switch (held_corner) {
+        .TL, .TR => pos.y + pointer_delta.y,
+        .BL, .BR => pos.y,
+    };
+    const new_size_x = switch (held_corner) {
+        .TL, .BL => size.x - pointer_delta.x,
+        .TR, .BR => size.x + pointer_delta.x,
+    };
+    const new_size_y = switch (held_corner) {
+        .TL, .TR => size.y - pointer_delta.y,
+        .BL, .BR => size.y + pointer_delta.y,
+    };
+    const rect = Rect.init(new_pos_x, new_pos_y, new_size_x, new_size_y);
+
+    selection.* = normalizeRect(rect);
+    var retval = held_corner;
+    if (rect.width < 0) retval = retval.hFlip();
+    if (rect.height < 0) retval = retval.vFlip();
+    return retval;
+}
+
+const Corner = enum {
+    TL,
+    TR,
+    BL,
+    BR,
+
+    pub fn vFlip(self: Corner) Corner {
+        return switch (self) {
+            .TR => .BR,
+            .TL => .BL,
+            .BR => .TR,
+            .BL => .TL,
+        };
+    }
+
+    pub fn hFlip(self: Corner) Corner {
+        return switch (self) {
+            .TR => .TL,
+            .TL => .TR,
+            .BR => .BL,
+            .BL => .BR,
+        };
+    }
+};
+
+fn getCornerCoords(rect: Rect, corner: Corner) Vec2 {
+    return switch (corner) {
+        .TL => Vec2.init(rect.x, rect.y),
+        .TR => Vec2.init(rect.x + rect.width, rect.y),
+        .BL => Vec2.init(rect.x, rect.y + rect.height),
+        .BR => Vec2.init(rect.x + rect.width, rect.y + rect.height),
+    };
 }
 
 fn drawGrid(camera: rl.Camera2D) void {
@@ -248,7 +373,7 @@ fn drawTiles(camera: rl.Camera2D, gol: Gol, selection: ?Rect, ally: Allocator) v
     defer tiles.deinit();
 
     if (selection) |select| {
-        const sel = normalizeRect(select);
+        const sel = select;
         const sel_start_x = math.lossyCast(isize, @floor(@max(camera.target.x, sel.x)));
         const sel_start_y = math.lossyCast(isize, @floor(@max(camera.target.y, sel.y)));
         const sel_end_x = math.lossyCast(isize, @ceil(@min(sel.x + sel.width, other_corner.x)));
