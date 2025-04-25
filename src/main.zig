@@ -7,6 +7,7 @@ const rl = @import("raylib");
 const rg = @import("raygui");
 
 const Gol = @import("game-of-life.zig");
+const Tile = Gol.Tile;
 const TileList = Gol.TileList;
 const BasicGame = @import("games/basic.zig");
 const HashsetGame = @import("games/hashset.zig");
@@ -191,6 +192,15 @@ pub fn main() !void {
             {
                 drawTiles(camera, gol, selection, ally);
 
+                if (edit_mode == .Select) {
+                    const x: isize = @intFromFloat(pointer_pos.x);
+                    const y: isize = @intFromFloat(pointer_pos.y);
+                    if (pat_list_active) |idx| {
+                        drawPastePreview(camera, x, y, patterns.getTiles(idx));
+                    } else {
+                        drawPastePreview(camera, x, y, clipboard.items);
+                    }
+                }
                 if (camera.zoom > 5) {
                     drawGrid(camera);
                 }
@@ -416,6 +426,22 @@ fn drawTiles(camera: rl.Camera2D, gol: Gol, selection: ?Rect, ally: Allocator) v
     } else {
         for (tiles.items) |tile| {
             rl.drawRectangle(@intCast(tile.x), @intCast(tile.y), 1, 1, .red);
+        }
+    }
+}
+
+fn drawPastePreview(camera: rl.Camera2D, x: isize, y: isize, tiles: []Tile) void {
+    const other_corner = otherScreenCorner(camera);
+
+    const start_x = math.lossyCast(isize, @floor(camera.target.x));
+    const start_y = math.lossyCast(isize, @floor(camera.target.y));
+    const end_x = math.lossyCast(isize, @ceil(other_corner.x));
+    const end_y = math.lossyCast(isize, @ceil(other_corner.y));
+
+    for (tiles) |orig_tile| {
+        const tile = .{ .x = orig_tile.x + x, .y = orig_tile.y + y };
+        if (start_x <= tile.x and tile.x < end_x and start_y <= tile.y and tile.y < end_y) {
+            rl.drawRectangle(@intCast(tile.x), @intCast(tile.y), 1, 1, Color.magenta.fade(0.5));
         }
     }
 }
