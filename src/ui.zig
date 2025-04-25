@@ -74,6 +74,17 @@ pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype) @TypeOf(tab_enum) {
     return retval;
 }
 
+pub fn drawListView(list: List, items: [][*:0]const u8, scroll: *i32, active: *?usize, focused: *?usize) void {
+    const rect = rectFromVecs(list.getPos(), list.size);
+    var active_inner: i32 = if (active.*) |a| @intCast(a) else -1;
+    var focused_inner: i32 = if (focused.*) |f| @intCast(f) else -1;
+
+    _ = rg.guiListViewEx(rect, items, scroll, &active_inner, &focused_inner);
+
+    active.* = if (active_inner != -1) @intCast(active_inner) else null;
+    focused.* = if (focused_inner != -1) @intCast(focused_inner) else null;
+}
+
 pub fn drawSlider(s: Slider, val: *f32, min: f32, max: f32) bool {
     const rect = rectFromVecs(s.getPos(), s.size);
 
@@ -123,6 +134,20 @@ const Button = struct {
     func: fn (ctx: anytype) void,
 
     pub fn getPos(self: Button) Vec2 {
+        if (self.container) |c| {
+            return c.getPos().add(self.pos);
+        } else {
+            return self.pos;
+        }
+    }
+};
+
+const List = struct {
+    container: ?*const Container,
+    pos: Vec2,
+    size: Vec2,
+
+    pub fn getPos(self: List) Vec2 {
         if (self.container) |c| {
             return c.getPos().add(self.pos);
         } else {
@@ -274,6 +299,12 @@ pub const step_button: Button = .{
             ctx.step.* = true;
         }
     }.func,
+};
+
+pub const pattern_list: List = .{
+    .container = &sidebar,
+    .pos = Vec2.init(20, 40),
+    .size = Vec2.init(sidebar_width - 40, 260),
 };
 
 pub const edit_mode_radio: RadioButtons = .{
