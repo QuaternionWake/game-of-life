@@ -11,6 +11,7 @@ const TileList = Gol.TileList;
 const BasicGame = @import("games/basic.zig");
 const HashsetGame = @import("games/hashset.zig");
 const ui = @import("ui.zig");
+const pattern = @import("pattern.zig");
 const game_thread = @import("game-thread.zig");
 
 const Color = rl.Color;
@@ -48,6 +49,12 @@ pub fn main() !void {
     const gol = game.gol();
 
     var clipboard = TileList.init(ally);
+
+    const patterns = try pattern.PatternList.init(ally);
+
+    var pat_list_scroll: i32 = 0;
+    var pat_list_active: ?usize = null;
+    var pat_list_focused: ?usize = null;
 
     var holding_grid = false;
     var holding_sidebar = false;
@@ -157,7 +164,14 @@ pub fn main() !void {
                 }
             }
             if (rl.isKeyPressed(.p)) {
-                gol.setTiles(@intFromFloat(pointer_pos.x), @intFromFloat(pointer_pos.y), clipboard.items);
+                // TODO: make pasting not limited to select mode
+                const x: isize = @intFromFloat(pointer_pos.x);
+                const y: isize = @intFromFloat(pointer_pos.y);
+                if (pat_list_active) |idx| {
+                    gol.setTiles(x, y, patterns.getTiles(idx));
+                } else {
+                    gol.setTiles(x, y, clipboard.items);
+                }
             }
             if (rl.isKeyPressed(.d)) {
                 selection = null;
@@ -226,8 +240,10 @@ pub fn main() !void {
                         editing_game_speed = !editing_game_speed;
                     }
                 },
-                .Patterns => {
-                    // TODO
+                .Patterns => blk: {
+                    const names_list = patterns.getNames(ally) catch break :blk;
+                    defer names_list.deinit();
+                    ui.drawListView(ui.pattern_list, names_list.items, &pat_list_scroll, &pat_list_active, &pat_list_focused);
                 },
             }
 
