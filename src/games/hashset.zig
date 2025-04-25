@@ -28,6 +28,12 @@ pub fn init(rng: Random, ally: Allocator) Self {
     return self;
 }
 
+pub fn deinit(self: *Self) void {
+    self.lock();
+    defer self.unlock();
+    self.board.deinit();
+}
+
 pub fn gol(self: *Self) Gol {
     return Gol.init(
         self,

@@ -36,6 +36,7 @@ pub fn main() !void {
     };
 
     var allocator = std.heap.DebugAllocator(.{}).init;
+    defer _ = allocator.detectLeaks();
     const ally = allocator.allocator();
 
     var random = std.Random.DefaultPrng.init(blk: {
@@ -47,11 +48,13 @@ pub fn main() !void {
 
     // var game = BasicGame.init(rng);
     var game = HashsetGame.init(rng, ally);
+    defer game.deinit();
     const gol = game.gol();
 
     var clipboard = TileList.init(ally);
 
     const patterns = try pattern.PatternList.init(ally);
+    defer patterns.deinit();
 
     var pat_list_scroll: i32 = 0;
     var pat_list_active: ?usize = null;
