@@ -63,6 +63,9 @@ pub fn main() !void {
     const EditMode = enum { Move, Edit, Select };
     var edit_mode: EditMode = .Move;
 
+    const SidebarTabs = enum { Settings, Patterns };
+    var sidebar_tab: SidebarTabs = .Settings;
+
     const thread = try Thread.spawn(.{}, game_thread.run, .{gol});
     defer thread.join();
     defer game_thread.should_end = true;
@@ -196,28 +199,36 @@ pub fn main() !void {
             }
             camera.end();
 
+            sidebar_tab = ui.drawTabButtons(ui.sidebar_tab_buttons, sidebar_tab);
             ui.drawContainer(ui.sidebar);
-            ui.drawContainer(ui.controls);
+            switch (sidebar_tab) {
+                .Settings => {
+                    ui.drawContainer(ui.controls);
 
-            ui.drawButton(ui.clear_button, .{ .clear = &game_thread.clear });
-            ui.drawButton(ui.randomize_button, .{ .randomize = &game_thread.randomize });
-            if (game_thread.game_paused) {
-                ui.drawButton(ui.unpause_button, .{ .paused = &game_thread.game_paused });
-                ui.drawButton(ui.step_button, .{ .step = &game_thread.step });
-            } else {
-                ui.drawButton(ui.pause_button, .{ .paused = &game_thread.game_paused });
-                rg.guiSetState(@intFromEnum(rg.GuiState.state_disabled));
-                ui.drawButton(ui.step_button, .{ .step = &game_thread.step });
-                rg.guiSetState(@intFromEnum(rg.GuiState.state_normal));
-            }
+                    ui.drawButton(ui.clear_button, .{ .clear = &game_thread.clear });
+                    ui.drawButton(ui.randomize_button, .{ .randomize = &game_thread.randomize });
+                    if (game_thread.game_paused) {
+                        ui.drawButton(ui.unpause_button, .{ .paused = &game_thread.game_paused });
+                        ui.drawButton(ui.step_button, .{ .step = &game_thread.step });
+                    } else {
+                        ui.drawButton(ui.pause_button, .{ .paused = &game_thread.game_paused });
+                        rg.guiSetState(@intFromEnum(rg.GuiState.state_disabled));
+                        ui.drawButton(ui.step_button, .{ .step = &game_thread.step });
+                        rg.guiSetState(@intFromEnum(rg.GuiState.state_normal));
+                    }
 
-            ui.drawContainer(ui.game_speed_box);
-            var game_speed_f: f32 = @floatFromInt(@max(game_speed, 1)); // @max is needed here so the spinner later on can be zero
-            if (ui.drawSlider(ui.game_speed_slider, &game_speed_f, 1, 240)) {
-                game_speed = @intFromFloat(game_speed_f);
-            }
-            if (ui.drawSpinner(ui.game_speed_spinner, &game_speed, 0, 240, editing_game_speed)) {
-                editing_game_speed = !editing_game_speed;
+                    ui.drawContainer(ui.game_speed_box);
+                    var game_speed_f: f32 = @floatFromInt(@max(game_speed, 1)); // @max is needed here so the spinner later on can be zero
+                    if (ui.drawSlider(ui.game_speed_slider, &game_speed_f, 1, 240)) {
+                        game_speed = @intFromFloat(game_speed_f);
+                    }
+                    if (ui.drawSpinner(ui.game_speed_spinner, &game_speed, 0, 240, editing_game_speed)) {
+                        editing_game_speed = !editing_game_speed;
+                    }
+                },
+                .Patterns => {
+                    // TODO
+                },
             }
 
             game_thread.time_target_ns = std.time.ns_per_s / @as(u64, @intCast(@max(game_speed, 1)));

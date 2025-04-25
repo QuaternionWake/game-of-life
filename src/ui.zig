@@ -53,6 +53,27 @@ pub fn drawRadioButtons(rb: RadioButtons, radio_enum: anytype) @TypeOf(radio_enu
     return retval;
 }
 
+pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype) @TypeOf(tab_enum) {
+    if (@typeInfo(@TypeOf(tab_enum)) != .@"enum") {
+        @compileError("Expected enum type, found '" ++ @typeName(tab_enum) ++ "'");
+    }
+
+    var rect = rectFromVecs(tb.getPos(), tb.size);
+
+    const fields = std.meta.fields(@TypeOf(tab_enum));
+
+    var retval = tab_enum;
+    inline for (fields) |field| {
+        if (rg.guiButton(rect, field.name) != 0) {
+            retval = @enumFromInt(field.value);
+        }
+
+        rect.x += tb.offset.x;
+        rect.y += tb.offset.y;
+    }
+    return retval;
+}
+
 pub fn drawSlider(s: Slider, val: *f32, min: f32, max: f32) bool {
     const rect = rectFromVecs(s.getPos(), s.size);
 
@@ -117,6 +138,21 @@ const RadioButtons = struct {
     offset: Vec2,
 
     pub fn getPos(self: RadioButtons) Vec2 {
+        if (self.container) |c| {
+            return c.getPos().add(self.pos);
+        } else {
+            return self.pos;
+        }
+    }
+};
+
+const TabButtons = struct {
+    container: ?*const Container,
+    pos: Vec2,
+    size: Vec2,
+    offset: Vec2,
+
+    pub fn getPos(self: TabButtons) Vec2 {
         if (self.container) |c| {
             return c.getPos().add(self.pos);
         } else {
@@ -245,6 +281,13 @@ pub const edit_mode_radio: RadioButtons = .{
     .pos = Vec2.init(20, 20),
     .radio_size = Vec2.init(15, 15),
     .offset = Vec2.init(0, 20),
+};
+
+pub const sidebar_tab_buttons: TabButtons = .{
+    .container = &sidebar,
+    .pos = Vec2.init(-30, 30),
+    .size = Vec2.init(32, 30),
+    .offset = Vec2.init(0, 35),
 };
 
 pub const game_speed_slider: Slider = .{
