@@ -1,7 +1,7 @@
 const std = @import("std");
 const Thread = std.Thread;
 
-const Gol = @import("game-of-life.zig");
+const Gol = @import("GameOfLife.zig");
 
 pub var step = false;
 pub var clear = false;

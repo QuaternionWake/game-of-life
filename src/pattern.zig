@@ -2,18 +2,17 @@ const std = @import("std");
 const List = std.ArrayList;
 const Allocator = std.mem.Allocator;
 
-const Tile = @import("game-of-life.zig").Tile;
-const TileList = @import("game-of-life.zig").TileList;
+const Tile = @import("GameOfLife.zig").Tile;
 
 pub const Pattern = struct {
     name: List(u8),
-    tiles: TileList,
+    tiles: List(Tile),
 
     pub fn init(name: []const u8, tiles: []const Tile, ally: Allocator) !Pattern {
         var name_string = try List(u8).initCapacity(ally, name.len + 1);
         name_string.appendSliceAssumeCapacity(name);
         name_string.appendAssumeCapacity(0);
-        var tile_list = try TileList.initCapacity(ally, tiles.len);
+        var tile_list = try List(Tile).initCapacity(ally, tiles.len);
         tile_list.appendSliceAssumeCapacity(tiles);
         return .{
             .name = name_string,

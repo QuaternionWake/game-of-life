@@ -1,15 +1,15 @@
 const std = @import("std");
 const math = std.math;
+const List = std.ArrayList;
 const Random = std.Random;
 const Allocator = std.mem.Allocator;
 const Mutex = std.Thread.Mutex;
 const RwLock = std.Thread.RwLock;
 
-const Gol = @import("../game-of-life.zig");
+const Gol = @import("../GameOfLife.zig");
 const Tile = Gol.Tile;
-const TileList = Gol.TileList;
 
-const Board = std.AutoHashMap(Gol.Tile, void);
+const Board = std.AutoHashMap(Tile, void);
 
 board: Board,
 ally: Allocator,
@@ -82,8 +82,8 @@ fn setTiles(self: *Self, x: isize, y: isize, tiles: []Tile) void {
     }
 }
 
-fn getTiles(self: *Self, x_start: isize, y_start: isize, x_end: isize, y_end: isize, ally: Allocator) Gol.TileList {
-    var tiles = Gol.TileList.init(ally);
+fn getTiles(self: *Self, x_start: isize, y_start: isize, x_end: isize, y_end: isize, ally: Allocator) List(Tile) {
+    var tiles = List(Tile).init(ally);
 
     self.lockShared();
     defer self.unlockShared();

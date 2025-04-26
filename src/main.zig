@@ -1,23 +1,22 @@
 const std = @import("std");
 const math = std.math;
+const List = std.ArrayList;
 const Thread = std.Thread;
 const Allocator = std.mem.Allocator;
 
 const rl = @import("raylib");
 const rg = @import("raygui");
-
-const Gol = @import("game-of-life.zig");
-const Tile = Gol.Tile;
-const TileList = Gol.TileList;
-const BasicGame = @import("games/basic.zig");
-const HashsetGame = @import("games/hashset.zig");
-const ui = @import("ui.zig");
-const pattern = @import("pattern.zig");
-const game_thread = @import("game-thread.zig");
-
 const Color = rl.Color;
 const Vec2 = rl.Vector2;
 const Rect = rl.Rectangle;
+
+const Gol = @import("GameOfLife.zig");
+const Tile = Gol.Tile;
+const BasicGame = @import("games/StaticArray.zig");
+const HashsetGame = @import("games/Hashset.zig");
+const ui = @import("ui.zig");
+const pattern = @import("pattern.zig");
+const game_thread = @import("game-thread.zig");
 
 var screen_size: Vec2 = .init(800, 500);
 
@@ -51,7 +50,7 @@ pub fn main() !void {
     defer game.deinit();
     const gol = game.gol();
 
-    var clipboard = TileList.init(ally);
+    var clipboard = List(Tile).init(ally);
 
     const patterns = try pattern.PatternList.init(ally);
     defer patterns.deinit();

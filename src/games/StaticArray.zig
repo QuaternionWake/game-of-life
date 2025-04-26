@@ -1,11 +1,11 @@
 const std = @import("std");
 const math = std.math;
+const List = std.ArrayList;
 const Random = std.Random;
 const Allocator = std.mem.Allocator;
 
-const Gol = @import("../game-of-life.zig");
+const Gol = @import("../GameOfLife.zig");
 const Tile = Gol.Tile;
-const TileList = Gol.TileList;
 
 const x_len = 256;
 const y_len = 256;
@@ -65,7 +65,7 @@ fn setTiles(self: *Self, x: isize, y: isize, tiles: []Tile) void {
     }
 }
 
-fn getTiles(self: *Self, x_start: isize, y_start: isize, x_end: isize, y_end: isize, ally: Allocator) Gol.TileList {
+fn getTiles(self: *Self, x_start: isize, y_start: isize, x_end: isize, y_end: isize, ally: Allocator) List(Tile) {
     const board = self.getBoard();
     // no shadowning :'(
     const x_start_: usize = @intCast(@max(x_start, 0));
@@ -73,7 +73,7 @@ fn getTiles(self: *Self, x_start: isize, y_start: isize, x_end: isize, y_end: is
     const x_end_ = math.lossyCast(usize, @min(x_end, x_len));
     const y_end_ = math.lossyCast(usize, @min(y_end, y_len));
 
-    var tiles = Gol.TileList.init(ally);
+    var tiles = List(Tile).init(ally);
     if (y_start_ > y_end_ or x_start_ > y_end_) return tiles;
     for (y_start_..y_end_) |y| {
         for (x_start_..x_end_) |x| {

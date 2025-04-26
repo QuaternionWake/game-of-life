@@ -2,7 +2,6 @@ const std = @import("std");
 
 const rl = @import("raylib");
 const rg = @import("raygui");
-
 const Vec2 = rl.Vector2;
 const Rect = rl.Rectangle;
 
