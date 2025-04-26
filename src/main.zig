@@ -60,7 +60,8 @@ pub fn main() !void {
     var pat_list_focused: ?usize = null;
 
     var holding_grid = false;
-    var holding_sidebar = false;
+    var holding_menu = false;
+    var hovering_menu = false;
     var editing_game_speed = false;
 
     var selection: ?Rect = null;
@@ -98,13 +99,9 @@ pub fn main() !void {
         if (edit_mode == .Move or rl.isKeyDown(.left_control)) {
             // Move and zoom the camera
             // ------------------------
-            if (!holding_grid and (holding_sidebar or rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect()))) {
-                holding_sidebar = rl.isMouseButtonDown(.left);
-            }
-
-            if (!holding_sidebar and (holding_grid or !rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect()))) {
-                holding_grid = rl.isMouseButtonDown(.left);
-                if (holding_grid) {
+            if (holding_grid or (!holding_menu and !hovering_menu)) {
+                holding_grid = rl.isMouseButtonDown(.left) or rl.isMouseButtonDown(.right);
+                if (rl.isMouseButtonDown(.left)) {
                     const delta = rl.getMouseDelta().scale(-1 / camera.zoom);
                     camera.target = camera.target.add(delta);
                 }
@@ -119,34 +116,40 @@ pub fn main() !void {
         } else if (edit_mode == .Edit) blk: {
             // Edit a tile
             // -----------
-            const tile = if (rl.isMouseButtonDown(.left)) true else if (rl.isMouseButtonDown(.right)) false else break :blk;
-            gol.setTile(pointer_pos_int.x, pointer_pos_int.y, tile);
+            if (holding_grid or (!holding_menu and !hovering_menu)) {
+                holding_grid = rl.isMouseButtonDown(.left) or rl.isMouseButtonDown(.right);
+                const tile = if (rl.isMouseButtonDown(.left)) true else if (rl.isMouseButtonDown(.right)) false else break :blk;
+                gol.setTile(pointer_pos_int.x, pointer_pos_int.y, tile);
+            }
         } else if (edit_mode == .Select) {
             // Modify the selection
             // --------------------
-            if (rl.isMouseButtonPressed(.left)) blk: {
-                if (selection) |s| {
-                    if (grabCorner(pointer_pos, s, camera)) |c| {
-                        held_corner = c;
-                        break :blk;
+            if (holding_grid or (!holding_menu and !hovering_menu)) {
+                holding_grid = rl.isMouseButtonDown(.left) or rl.isMouseButtonDown(.right);
+                if (rl.isMouseButtonPressed(.left)) blk: {
+                    if (selection) |s| {
+                        if (grabCorner(pointer_pos, s, camera)) |c| {
+                            held_corner = c;
+                            break :blk;
+                        }
                     }
+                    selection = Rect.init(pointer_pos.x, pointer_pos.y, 0, 0);
+                    held_corner = .BR;
                 }
-                selection = Rect.init(pointer_pos.x, pointer_pos.y, 0, 0);
-                held_corner = .BR;
-            }
-            if (rl.isMouseButtonDown(.left)) blk: {
-                if (selection) |*s| {
-                    if (held_corner) |c| {
-                        held_corner = resizeSelection(pointer_delta, s, c);
-                        break :blk;
+                if (rl.isMouseButtonDown(.left)) blk: {
+                    if (selection) |*s| {
+                        if (held_corner) |c| {
+                            held_corner = resizeSelection(pointer_delta, s, c);
+                            break :blk;
+                        }
                     }
-                }
-                selection = Rect.init(pointer_pos.x, pointer_pos.y, 0, 0);
-                held_corner = .BR;
-            } else if (rl.isMouseButtonDown(.right)) {
-                if (selection) |*s| {
-                    s.x += pointer_delta.x;
-                    s.y += pointer_delta.y;
+                    selection = Rect.init(pointer_pos.x, pointer_pos.y, 0, 0);
+                    held_corner = .BR;
+                } else if (rl.isMouseButtonDown(.right)) {
+                    if (selection) |*s| {
+                        s.x += pointer_delta.x;
+                        s.y += pointer_delta.y;
+                    }
                 }
             }
             if (!rl.isMouseButtonDown(.left)) {
@@ -206,7 +209,8 @@ pub fn main() !void {
 
                 if (selection) |s| {
                     rl.drawRectangleLinesEx(s, 2 / camera.zoom, .sky_blue);
-                    if (if (held_corner) |c| c else grabCorner(pointer_pos, s, camera)) |c| {
+                    if (if (held_corner) |c| c else grabCorner(pointer_pos, s, camera)) |c| blk: {
+                        if (!holding_grid and (hovering_menu or holding_menu)) break :blk;
                         const center = getCornerCoords(s, c);
                         const color: Color = switch (c) {
                             .TL => .maroon,
@@ -221,8 +225,14 @@ pub fn main() !void {
             }
             camera.end();
 
-            sidebar_tab = ui.drawTabButtons(ui.sidebar_tab_buttons, sidebar_tab);
+            hovering_menu = false;
+
+            sidebar_tab, const hovering_tab_button = ui.drawTabButtons(ui.sidebar_tab_buttons, sidebar_tab);
+            hovering_menu = hovering_menu or hovering_tab_button;
+
             ui.drawContainer(ui.sidebar);
+            hovering_menu = hovering_menu or rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect());
+
             switch (sidebar_tab) {
                 .Settings => {
                     ui.drawContainer(ui.controls);
@@ -268,6 +278,11 @@ pub fn main() !void {
             rl.drawText(rl.textFormat("Avg gen time: %.2fus", .{avg_time}), 90, 20, 17, .dark_gray);
 
             edit_mode = ui.drawRadioButtons(ui.edit_mode_radio, edit_mode);
+            const radio_rect = Rect.init(10, 10, 70, 70);
+            hovering_menu = hovering_menu or rl.checkCollisionPointRec(mouse_pos, radio_rect);
+            if (holding_menu or (!holding_grid and hovering_menu)) {
+                holding_menu = rl.isMouseButtonDown(.left) or rl.isMouseButtonDown(.right);
+            }
         }
         rl.endDrawing();
     }

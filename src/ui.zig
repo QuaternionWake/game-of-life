@@ -52,7 +52,7 @@ pub fn drawRadioButtons(rb: RadioButtons, radio_enum: anytype) @TypeOf(radio_enu
     return retval;
 }
 
-pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype) @TypeOf(tab_enum) {
+pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype) struct { @TypeOf(tab_enum), bool } {
     if (@typeInfo(@TypeOf(tab_enum)) != .@"enum") {
         @compileError("Expected enum type, found '" ++ @typeName(tab_enum) ++ "'");
     }
@@ -62,15 +62,19 @@ pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype) @TypeOf(tab_enum) {
     const fields = std.meta.fields(@TypeOf(tab_enum));
 
     var retval = tab_enum;
+    var hovering = false;
     inline for (fields) |field| {
         if (rg.guiButton(rect, field.name) != 0) {
             retval = @enumFromInt(field.value);
+        }
+        if (rl.checkCollisionPointRec(rl.getMousePosition(), rect)) {
+            hovering = true;
         }
 
         rect.x += tb.offset.x;
         rect.y += tb.offset.y;
     }
-    return retval;
+    return .{ retval, hovering };
 }
 
 pub fn drawListView(list: List, items: [][*:0]const u8, scroll: *i32, active: *?usize, focused: *?usize) void {
