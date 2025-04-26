@@ -89,6 +89,10 @@ pub fn main() !void {
         const mouse_delta = rl.getMouseDelta();
         const pointer_pos = getPointerPos(mouse_pos, camera);
         const pointer_delta = getPointerDelta(mouse_delta, camera);
+        const pointer_pos_int: Tile = .{
+            .x = @intFromFloat(@floor(pointer_pos.x)),
+            .y = @intFromFloat(@floor(pointer_pos.y)),
+        };
         const scroll = rl.getMouseWheelMove();
 
         if (edit_mode == .Move or rl.isKeyDown(.left_control)) {
@@ -116,7 +120,7 @@ pub fn main() !void {
             // Edit a tile
             // -----------
             const tile = if (rl.isMouseButtonDown(.left)) true else if (rl.isMouseButtonDown(.right)) false else break :blk;
-            gol.setTile(@intFromFloat(@floor(pointer_pos.x)), @intFromFloat(@floor(pointer_pos.y)), tile);
+            gol.setTile(pointer_pos_int.x, pointer_pos_int.y, tile);
         } else if (edit_mode == .Select) {
             // Modify the selection
             // --------------------
@@ -150,30 +154,24 @@ pub fn main() !void {
             }
             if (rl.isKeyPressed(.c)) {
                 if (selection) |sel| {
-                    const s = sel;
-                    const start_x = math.lossyCast(isize, @floor(s.x));
-                    const start_y = math.lossyCast(isize, @floor(s.y));
-                    const end_x = math.lossyCast(isize, @ceil(s.x + s.width));
-                    const end_y = math.lossyCast(isize, @ceil(s.y + s.height));
+                    const bounds = getBounds(sel.x, sel.y, sel.x + sel.width, sel.y + sel.height);
 
                     clipboard.deinit();
-                    clipboard = gol.getTiles(start_x, start_y, end_x, end_y, ally);
+                    clipboard = gol.getTiles(bounds.x_start, bounds.y_start, bounds.x_end, bounds.y_end, ally);
                     for (clipboard.items) |*tile| {
                         tile.* = .{
-                            .x = tile.x - @as(isize, @intFromFloat(pointer_pos.x)),
-                            .y = tile.y - @as(isize, @intFromFloat(pointer_pos.y)),
+                            .x = tile.x - pointer_pos_int.x,
+                            .y = tile.y - pointer_pos_int.y,
                         };
                     }
                 }
             }
             if (rl.isKeyPressed(.p)) {
                 // TODO: make pasting not limited to select mode
-                const x: isize = @intFromFloat(pointer_pos.x);
-                const y: isize = @intFromFloat(pointer_pos.y);
                 if (pat_list_active) |idx| {
-                    gol.setTiles(x, y, patterns.getTiles(idx));
+                    gol.setTiles(pointer_pos_int.x, pointer_pos_int.y, patterns.getTiles(idx));
                 } else {
-                    gol.setTiles(x, y, clipboard.items);
+                    gol.setTiles(pointer_pos_int.x, pointer_pos_int.y, clipboard.items);
                 }
             }
             if (rl.isKeyPressed(.d)) {
@@ -195,12 +193,10 @@ pub fn main() !void {
                 drawTiles(camera, gol, selection, ally);
 
                 if (edit_mode == .Select) {
-                    const x: isize = @intFromFloat(pointer_pos.x);
-                    const y: isize = @intFromFloat(pointer_pos.y);
                     if (pat_list_active) |idx| {
-                        drawPastePreview(camera, x, y, patterns.getTiles(idx));
+                        drawPastePreview(camera, pointer_pos_int.x, pointer_pos_int.y, patterns.getTiles(idx));
                     } else {
-                        drawPastePreview(camera, x, y, clipboard.items);
+                        drawPastePreview(camera, pointer_pos_int.x, pointer_pos_int.y, clipboard.items);
                     }
                 }
                 if (camera.zoom > 5) {
@@ -402,24 +398,16 @@ fn drawGrid(camera: rl.Camera2D) void {
 
 fn drawTiles(camera: rl.Camera2D, gol: Gol, selection: ?Rect, ally: Allocator) void {
     const other_corner = otherScreenCorner(camera);
+    const bounds = getBounds(camera.target.x, camera.target.y, other_corner.x, other_corner.y);
 
-    const start_x = math.lossyCast(isize, @floor(camera.target.x));
-    const start_y = math.lossyCast(isize, @floor(camera.target.y));
-    const end_x = math.lossyCast(isize, @ceil(other_corner.x));
-    const end_y = math.lossyCast(isize, @ceil(other_corner.y));
-
-    const tiles = gol.getTiles(start_x, start_y, end_x, end_y, ally);
+    const tiles = gol.getTiles(bounds.x_start, bounds.y_start, bounds.x_end, bounds.y_end, ally);
     defer tiles.deinit();
 
-    if (selection) |select| {
-        const sel = select;
-        const sel_start_x = math.lossyCast(isize, @floor(@max(camera.target.x, sel.x)));
-        const sel_start_y = math.lossyCast(isize, @floor(@max(camera.target.y, sel.y)));
-        const sel_end_x = math.lossyCast(isize, @ceil(@min(sel.x + sel.width, other_corner.x)));
-        const sel_end_y = math.lossyCast(isize, @ceil(@min(sel.y + sel.height, other_corner.y)));
+    if (selection) |sel| {
+        const sel_bounds = getBounds(sel.x, sel.y, sel.x + sel.width, sel.y + sel.height);
 
         for (tiles.items) |tile| {
-            if (sel_start_x <= tile.x and tile.x < sel_end_x and sel_start_y <= tile.y and tile.y < sel_end_y) {
+            if (sel_bounds.contains(tile)) {
                 rl.drawRectangle(@intCast(tile.x), @intCast(tile.y), 1, 1, .blue);
             } else {
                 rl.drawRectangle(@intCast(tile.x), @intCast(tile.y), 1, 1, .red);
@@ -434,18 +422,34 @@ fn drawTiles(camera: rl.Camera2D, gol: Gol, selection: ?Rect, ally: Allocator) v
 
 fn drawPastePreview(camera: rl.Camera2D, x: isize, y: isize, tiles: []Tile) void {
     const other_corner = otherScreenCorner(camera);
-
-    const start_x = math.lossyCast(isize, @floor(camera.target.x));
-    const start_y = math.lossyCast(isize, @floor(camera.target.y));
-    const end_x = math.lossyCast(isize, @ceil(other_corner.x));
-    const end_y = math.lossyCast(isize, @ceil(other_corner.y));
+    const bounds = getBounds(camera.target.x, camera.target.y, other_corner.x, other_corner.y);
 
     for (tiles) |orig_tile| {
-        const tile = .{ .x = orig_tile.x + x, .y = orig_tile.y + y };
-        if (start_x <= tile.x and tile.x < end_x and start_y <= tile.y and tile.y < end_y) {
+        const tile: Tile = .{ .x = orig_tile.x + x, .y = orig_tile.y + y };
+        if (bounds.contains(tile)) {
             rl.drawRectangle(@intCast(tile.x), @intCast(tile.y), 1, 1, Color.magenta.fade(0.5));
         }
     }
+}
+
+const Bounds = struct {
+    x_start: isize,
+    y_start: isize,
+    x_end: isize,
+    y_end: isize,
+
+    pub fn contains(self: Bounds, tile: Tile) bool {
+        return self.x_start <= tile.x and tile.x < self.x_end and self.y_start <= tile.y and tile.y < self.y_end;
+    }
+};
+
+fn getBounds(x_start: f32, y_start: f32, x_end: f32, y_end: f32) Bounds {
+    return .{
+        .x_start = math.lossyCast(isize, @floor(x_start)),
+        .y_start = math.lossyCast(isize, @floor(y_start)),
+        .x_end = math.lossyCast(isize, @ceil(x_end)),
+        .y_end = math.lossyCast(isize, @ceil(y_end)),
+    };
 }
 
 fn otherScreenCorner(camera: rl.Camera2D) Vec2 {
