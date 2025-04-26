@@ -237,15 +237,15 @@ pub fn main() !void {
                 .Settings => {
                     ui.drawContainer(ui.controls);
 
-                    ui.drawButton(ui.clear_button, .{ .clear = &game_thread.clear });
-                    ui.drawButton(ui.randomize_button, .{ .randomize = &game_thread.randomize });
+                    if (ui.drawButton(ui.clear_button)) game_thread.clear = true;
+                    if (ui.drawButton(ui.randomize_button)) game_thread.randomize = true;
                     if (game_thread.game_paused) {
-                        ui.drawButton(ui.unpause_button, .{ .paused = &game_thread.game_paused });
-                        ui.drawButton(ui.step_button, .{ .step = &game_thread.step });
+                        if (ui.drawButton(ui.unpause_button)) game_thread.game_paused = false;
+                        if (ui.drawButton(ui.step_button)) game_thread.step = true;
                     } else {
-                        ui.drawButton(ui.pause_button, .{ .paused = &game_thread.game_paused });
+                        if (ui.drawButton(ui.pause_button)) game_thread.game_paused = true;
                         rg.guiSetState(@intFromEnum(rg.GuiState.state_disabled));
-                        ui.drawButton(ui.step_button, .{ .step = &game_thread.step });
+                        if (ui.drawButton(ui.step_button)) game_thread.step = true;
                         rg.guiSetState(@intFromEnum(rg.GuiState.state_normal));
                     }
 

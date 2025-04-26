@@ -7,12 +7,10 @@ const Rect = rl.Rectangle;
 
 pub const sidebar_width = 250;
 
-pub fn drawButton(b: Button, ctx: anytype) void {
+pub fn drawButton(b: Button) bool {
     const rect = rectFromVecs(b.getPos(), b.size);
 
-    if (rg.guiButton(rect, b.text) != 0) {
-        b.func(ctx);
-    }
+    return rg.guiButton(rect, b.text) != 0;
 }
 
 pub fn drawContainer(c: Container) void {
@@ -134,7 +132,6 @@ const Button = struct {
     pos: Vec2,
     size: Vec2,
     text: [:0]const u8,
-    func: fn (ctx: anytype) void,
 
     pub fn getPos(self: Button) Vec2 {
         if (self.container) |c| {
@@ -249,11 +246,6 @@ pub const clear_button: Button = .{
     .pos = Vec2.init(20, 20),
     .size = Vec2.init(controls.size.x - 40, 40),
     .text = "Clear",
-    .func = struct {
-        pub fn func(ctx: anytype) void {
-            ctx.clear.* = true;
-        }
-    }.func,
 };
 
 pub const randomize_button: Button = .{
@@ -261,11 +253,6 @@ pub const randomize_button: Button = .{
     .pos = Vec2.init(20, clear_button.pos.y + 60),
     .size = Vec2.init(controls.size.x - 40, 40),
     .text = "Randomize",
-    .func = struct {
-        pub fn func(ctx: anytype) void {
-            ctx.randomize.* = true;
-        }
-    }.func,
 };
 
 pub const pause_button: Button = .{
@@ -273,11 +260,6 @@ pub const pause_button: Button = .{
     .pos = Vec2.init(20, randomize_button.pos.y + 60),
     .size = Vec2.init(controls.size.x - 40, 40),
     .text = "Pause",
-    .func = struct {
-        pub fn func(ctx: anytype) void {
-            ctx.paused.* = true;
-        }
-    }.func,
 };
 
 pub const unpause_button: Button = .{
@@ -285,11 +267,6 @@ pub const unpause_button: Button = .{
     .pos = pause_button.pos,
     .size = pause_button.size,
     .text = "Unpause",
-    .func = struct {
-        pub fn func(ctx: anytype) void {
-            ctx.paused.* = false;
-        }
-    }.func,
 };
 
 pub const step_button: Button = .{
@@ -297,11 +274,6 @@ pub const step_button: Button = .{
     .pos = Vec2.init(20, pause_button.pos.y + 60),
     .size = Vec2.init(controls.size.x - 40, 40),
     .text = "Step",
-    .func = struct {
-        pub fn func(ctx: anytype) void {
-            ctx.step.* = true;
-        }
-    }.func,
 };
 
 pub const pattern_list: List = .{
