@@ -7,10 +7,48 @@ const Rect = rl.Rectangle;
 
 pub const sidebar_width = 250;
 
-pub fn drawButton(b: Button) bool {
+pub const GuiElement = enum {
+    Grid,
+    Sidebar,
+    EditMode,
+
+    TabSettings,
+    TabPatterns,
+
+    ClearButton,
+    RandomizeButton,
+    PauseButton,
+    StepButton,
+
+    GameSpeedSlider,
+    GameSpeedSpinner,
+
+    PatternList,
+};
+
+pub fn grabGuiElement(held_element: *?GuiElement, hovered_element: GuiElement, element: GuiElement) bool {
+    const holding_mouse = rl.isMouseButtonDown(.left) or rl.isMouseButtonDown(.right);
+    if (held_element.* == element or (held_element.* == null and hovered_element == element)) {
+        held_element.* = if (holding_mouse) element else null;
+        return true;
+    }
+    return false;
+}
+
+pub fn drawButton(b: Button, held_element: ?GuiElement) bool {
     const rect = rectFromVecs(b.getPos(), b.size);
 
-    return rg.guiButton(rect, b.text) != 0;
+    if (b.element == held_element) {
+        return rg.guiButton(rect, b.text) != 0;
+    } else if (held_element == null) {
+        _ = rg.guiButton(rect, b.text);
+        return false;
+    } else {
+        rg.guiLock();
+        _ = rg.guiButton(rect, b.text);
+        rg.guiUnlock();
+        return false;
+    }
 }
 
 pub fn drawContainer(c: Container) void {
@@ -26,7 +64,7 @@ pub fn drawContainer(c: Container) void {
     }
 }
 
-pub fn drawRadioButtons(rb: RadioButtons, radio_enum: anytype) @TypeOf(radio_enum) {
+pub fn drawRadioButtons(rb: RadioButtons, radio_enum: anytype, held_element: ?GuiElement) @TypeOf(radio_enum) {
     if (@typeInfo(@TypeOf(radio_enum)) != .@"enum") {
         @compileError("Expected enum type, found '" ++ @typeName(radio_enum) ++ "'");
     }
@@ -36,21 +74,32 @@ pub fn drawRadioButtons(rb: RadioButtons, radio_enum: anytype) @TypeOf(radio_enu
     const fields = std.meta.fields(@TypeOf(radio_enum));
 
     var retval = radio_enum;
+    if (held_element != radio_enum.getGuiElement() and held_element != null) rg.guiLock();
     inline for (fields) |field| {
         const b1 = field.value == @intFromEnum(radio_enum);
         var b2 = b1;
-        _ = rg.guiCheckBox(rect, field.name, &b2);
-        if (b2 != b1) {
-            retval = @enumFromInt(field.value);
+        if (held_element == radio_enum.getGuiElement()) {
+            _ = rg.guiCheckBox(rect, field.name, &b2);
+            if (b2 != b1) {
+                retval = @enumFromInt(field.value);
+            }
+            // prevent drawing wrong radio button state for one frame
+        } else if (held_element == null and !rl.isMouseButtonReleased(.left)) {
+            _ = rg.guiCheckBox(rect, field.name, &b2);
+        } else {
+            rg.guiLock();
+            _ = rg.guiCheckBox(rect, field.name, &b2);
+            rg.guiUnlock();
         }
 
         rect.x += rb.offset.x;
         rect.y += rb.offset.y;
     }
+    if (held_element != .EditMode and held_element != null) rg.guiUnlock();
     return retval;
 }
 
-pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype) struct { @TypeOf(tab_enum), bool } {
+pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype, held_element: ?GuiElement) struct { @TypeOf(tab_enum), ?@TypeOf(tab_enum) } {
     if (@typeInfo(@TypeOf(tab_enum)) != .@"enum") {
         @compileError("Expected enum type, found '" ++ @typeName(tab_enum) ++ "'");
     }
@@ -60,13 +109,21 @@ pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype) struct { @TypeOf(tab_en
     const fields = std.meta.fields(@TypeOf(tab_enum));
 
     var retval = tab_enum;
-    var hovering = false;
+    var hovering: ?@TypeOf(tab_enum) = null;
     inline for (fields) |field| {
-        if (rg.guiButton(rect, field.name) != 0) {
-            retval = @enumFromInt(field.value);
+        if (@as(@TypeOf(tab_enum), @enumFromInt(field.value)).getGuiElement() == held_element) {
+            if (rg.guiButton(rect, field.name) != 0) {
+                retval = @enumFromInt(field.value);
+            }
+        } else if (held_element == null) {
+            _ = rg.guiButton(rect, field.name);
+        } else {
+            rg.guiLock();
+            _ = rg.guiButton(rect, field.name);
+            rg.guiUnlock();
         }
         if (rl.checkCollisionPointRec(rl.getMousePosition(), rect)) {
-            hovering = true;
+            hovering = @enumFromInt(field.value);
         }
 
         rect.x += tb.offset.x;
@@ -75,27 +132,54 @@ pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype) struct { @TypeOf(tab_en
     return .{ retval, hovering };
 }
 
-pub fn drawListView(list: List, items: [][*:0]const u8, scroll: *i32, active: *?usize, focused: *?usize) void {
+pub fn drawListView(list: List, items: [][*:0]const u8, scroll: *i32, active: *?usize, focused: *?usize, held_element: ?GuiElement) void {
     const rect = rectFromVecs(list.getPos(), list.size);
     var active_inner: i32 = if (active.*) |a| @intCast(a) else -1;
     var focused_inner: i32 = if (focused.*) |f| @intCast(f) else -1;
 
-    _ = rg.guiListViewEx(rect, items, scroll, &active_inner, &focused_inner);
+    if (list.element == held_element or held_element == null) {
+        _ = rg.guiListViewEx(rect, items, scroll, &active_inner, &focused_inner);
 
-    active.* = if (active_inner != -1) @intCast(active_inner) else null;
-    focused.* = if (focused_inner != -1) @intCast(focused_inner) else null;
+        active.* = if (active_inner != -1) @intCast(active_inner) else null;
+        focused.* = if (focused_inner != -1) @intCast(focused_inner) else null;
+    } else {
+        rg.guiLock();
+        _ = rg.guiListViewEx(rect, items, scroll, &active_inner, &focused_inner);
+        rg.guiUnlock();
+    }
 }
 
-pub fn drawSlider(s: Slider, val: *f32, min: f32, max: f32) bool {
+pub fn drawSlider(s: Slider, val: *f32, min: f32, max: f32, held_element: ?GuiElement) bool {
     const rect = rectFromVecs(s.getPos(), s.size);
 
-    return rg.guiSlider(rect, s.text_left, s.text_right, val, min, max) != 0;
+    if (s.element == held_element) {
+        return rg.guiSlider(rect, s.text_left, s.text_right, val, min, max) != 0;
+    } else if (held_element == null) {
+        _ = rg.guiSlider(rect, s.text_left, s.text_right, val, min, max);
+        return false;
+    } else {
+        rg.guiLock();
+        _ = rg.guiSlider(rect, s.text_left, s.text_right, val, min, max);
+        rg.guiUnlock();
+        return false;
+    }
 }
 
-pub fn drawSpinner(sb: Spinner, val: *i32, min: i32, max: i32, edit_mode: bool) bool {
+pub fn drawSpinner(sb: Spinner, val: *i32, min: i32, max: i32, edit_mode: bool, held_element: ?GuiElement) bool {
     const rect = rectFromVecs(sb.getPos(), sb.size);
 
-    return rg.guiSpinner(rect, sb.text, val, min, max, edit_mode) != 0;
+    if (sb.element == held_element) {
+        return rg.guiSpinner(rect, sb.text, val, min, max, edit_mode) != 0;
+    } else if (held_element == null) {
+        // giving it val for min and max both prevents it form editing the value and from drawing
+        // the wrong, edited value for one frame
+        return rg.guiSpinner(rect, sb.text, val, val.*, val.*, edit_mode) != 0;
+    } else {
+        rg.guiLock();
+        _ = rg.guiSpinner(rect, sb.text, val, min, max, edit_mode);
+        rg.guiUnlock();
+        return edit_mode;
+    }
 }
 
 fn rectFromVecs(pos: Vec2, size: Vec2) Rect {
@@ -115,7 +199,8 @@ const Container = struct {
     type: enum { Panel, GroupBox },
 
     pub fn getRect(self: Container) Rect {
-        return Rect.init(self.pos.x, self.pos.y, self.size.x, self.size.y);
+        const pos = self.getPos();
+        return Rect.init(pos.x, pos.y, self.size.x, self.size.y);
     }
 
     pub fn getPos(self: Container) Vec2 {
@@ -132,6 +217,12 @@ const Button = struct {
     pos: Vec2,
     size: Vec2,
     text: [:0]const u8,
+    element: GuiElement,
+
+    pub fn getRect(self: Button) Rect {
+        const pos = self.getPos();
+        return Rect.init(pos.x, pos.y, self.size.x, self.size.y);
+    }
 
     pub fn getPos(self: Button) Vec2 {
         if (self.container) |c| {
@@ -146,6 +237,12 @@ const List = struct {
     container: ?*const Container,
     pos: Vec2,
     size: Vec2,
+    element: GuiElement,
+
+    pub fn getRect(self: List) Rect {
+        const pos = self.getPos();
+        return Rect.init(pos.x, pos.y, self.size.x, self.size.y);
+    }
 
     pub fn getPos(self: List) Vec2 {
         if (self.container) |c| {
@@ -192,6 +289,12 @@ const Slider = struct {
     size: Vec2,
     text_left: [:0]const u8,
     text_right: [:0]const u8,
+    element: GuiElement,
+
+    pub fn getRect(self: Slider) Rect {
+        const pos = self.getPos();
+        return Rect.init(pos.x, pos.y, self.size.x, self.size.y);
+    }
 
     pub fn getPos(self: Slider) Vec2 {
         if (self.container) |c| {
@@ -207,6 +310,12 @@ const Spinner = struct {
     pos: Vec2,
     size: Vec2,
     text: [:0]const u8,
+    element: GuiElement,
+
+    pub fn getRect(self: Spinner) Rect {
+        const pos = self.getPos();
+        return Rect.init(pos.x, pos.y, self.size.x, self.size.y);
+    }
 
     pub fn getPos(self: Spinner) Vec2 {
         if (self.container) |c| {
@@ -214,6 +323,26 @@ const Spinner = struct {
         } else {
             return self.pos;
         }
+    }
+};
+
+pub const EditMode = enum {
+    Move,
+    Edit,
+    Select,
+    pub fn getGuiElement(_: EditMode) GuiElement {
+        return .EditMode;
+    }
+};
+
+pub const SidebarTabs = enum {
+    Settings,
+    Patterns,
+    pub fn getGuiElement(self: SidebarTabs) GuiElement {
+        return switch (self) {
+            .Settings => .TabSettings,
+            .Patterns => .TabPatterns,
+        };
     }
 };
 
@@ -246,6 +375,7 @@ pub const clear_button: Button = .{
     .pos = Vec2.init(20, 20),
     .size = Vec2.init(controls.size.x - 40, 40),
     .text = "Clear",
+    .element = .ClearButton,
 };
 
 pub const randomize_button: Button = .{
@@ -253,6 +383,7 @@ pub const randomize_button: Button = .{
     .pos = Vec2.init(20, clear_button.pos.y + 60),
     .size = Vec2.init(controls.size.x - 40, 40),
     .text = "Randomize",
+    .element = .RandomizeButton,
 };
 
 pub const pause_button: Button = .{
@@ -260,6 +391,7 @@ pub const pause_button: Button = .{
     .pos = Vec2.init(20, randomize_button.pos.y + 60),
     .size = Vec2.init(controls.size.x - 40, 40),
     .text = "Pause",
+    .element = .PauseButton,
 };
 
 pub const unpause_button: Button = .{
@@ -267,6 +399,7 @@ pub const unpause_button: Button = .{
     .pos = pause_button.pos,
     .size = pause_button.size,
     .text = "Unpause",
+    .element = .PauseButton,
 };
 
 pub const step_button: Button = .{
@@ -274,12 +407,14 @@ pub const step_button: Button = .{
     .pos = Vec2.init(20, pause_button.pos.y + 60),
     .size = Vec2.init(controls.size.x - 40, 40),
     .text = "Step",
+    .element = .StepButton,
 };
 
 pub const pattern_list: List = .{
     .container = &sidebar,
     .pos = Vec2.init(20, 40),
     .size = Vec2.init(sidebar_width - 40, 260),
+    .element = .PatternList,
 };
 
 pub const edit_mode_radio: RadioButtons = .{
@@ -302,6 +437,7 @@ pub const game_speed_slider: Slider = .{
     .size = Vec2.init(sidebar_width - 60 - 100, 20),
     .text_left = "",
     .text_right = "",
+    .element = .GameSpeedSlider,
 };
 
 pub const game_speed_spinner: Spinner = .{
@@ -309,4 +445,5 @@ pub const game_speed_spinner: Spinner = .{
     .pos = Vec2.init(game_speed_slider.size.x + 20, 10),
     .size = Vec2.init(game_speed_box.size.x - game_speed_slider.size.x - 30, 20),
     .text = "",
+    .element = .GameSpeedSpinner,
 };
