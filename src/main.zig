@@ -162,12 +162,33 @@ pub fn main() !void {
                     }
                 }
             }
-            if (rl.isKeyPressed(.p)) {
+            if (rl.isKeyPressed(.p)) blk: {
                 // TODO: make pasting not limited to select mode
                 if (pat_list_active) |idx| {
-                    gol.setTiles(pointer_pos_int.x, pointer_pos_int.y, patterns.getTiles(idx));
+                    const tiles = patterns.getTiles(idx, ally) catch break :blk;
+                    defer tiles.deinit();
+                    gol.setTiles(pointer_pos_int.x, pointer_pos_int.y, tiles.items);
                 } else {
                     gol.setTiles(pointer_pos_int.x, pointer_pos_int.y, clipboard.items);
+                }
+            }
+            if (rl.isKeyPressed(.r)) {
+                if (pat_list_active) |idx| {
+                    if (rl.isKeyDown(.left_shift) or rl.isKeyDown(.right_shift)) {
+                        patterns.getPatternRef(idx).orientation.rotateCCW();
+                    } else {
+                        patterns.getPatternRef(idx).orientation.rotateCW();
+                    }
+                }
+            }
+            if (rl.isKeyPressed(.h)) {
+                if (pat_list_active) |idx| {
+                    patterns.getPatternRef(idx).orientation.flipH();
+                }
+            }
+            if (rl.isKeyPressed(.v)) {
+                if (pat_list_active) |idx| {
+                    patterns.getPatternRef(idx).orientation.flipV();
                 }
             }
             if (rl.isKeyPressed(.d)) {
@@ -188,9 +209,11 @@ pub fn main() !void {
             {
                 drawTiles(camera, gol, selection, ally);
 
-                if (edit_mode == .Select) {
+                if (edit_mode == .Select) blk: {
                     if (pat_list_active) |idx| {
-                        drawPastePreview(camera, pointer_pos_int.x, pointer_pos_int.y, patterns.getTiles(idx));
+                        const tiles = patterns.getTiles(idx, ally) catch break :blk;
+                        defer tiles.deinit();
+                        drawPastePreview(camera, pointer_pos_int.x, pointer_pos_int.y, tiles.items);
                     } else {
                         drawPastePreview(camera, pointer_pos_int.x, pointer_pos_int.y, clipboard.items);
                     }
