@@ -50,7 +50,8 @@ pub fn main() !void {
     defer game.deinit();
     const gol = game.gol();
 
-    var clipboard = List(Tile).init(ally);
+    var clipboard = try pattern.Pattern.init("", &.{}, ally);
+    defer clipboard.deinit();
 
     const patterns = try pattern.PatternList.init(ally);
     defer patterns.deinit();
@@ -152,44 +153,39 @@ pub fn main() !void {
                 if (selection) |sel| {
                     const bounds = getBounds(sel.x, sel.y, sel.x + sel.width, sel.y + sel.height);
 
-                    clipboard.deinit();
-                    clipboard = gol.getTiles(bounds.x_start, bounds.y_start, bounds.x_end, bounds.y_end, ally);
-                    for (clipboard.items) |*tile| {
+                    var tiles = gol.getTiles(bounds.x_start, bounds.y_start, bounds.x_end, bounds.y_end, ally);
+                    defer tiles.deinit();
+                    for (tiles.items) |*tile| {
                         tile.* = .{
                             .x = tile.x - pointer_pos_int.x,
                             .y = tile.y - pointer_pos_int.y,
                         };
                     }
+
+                    clipboard.setTiles(tiles.items) catch {};
+                    clipboard.orientation = .{};
                 }
             }
+
+            const pat = if (pat_list_active) |idx| patterns.getPatternRef(idx) else &clipboard;
+            // TODO: make all this stuff not limited to select mode
             if (rl.isKeyPressed(.p)) blk: {
-                // TODO: make pasting not limited to select mode
-                if (pat_list_active) |idx| {
-                    const tiles = patterns.getTiles(idx, ally) catch break :blk;
-                    defer tiles.deinit();
-                    gol.setTiles(pointer_pos_int.x, pointer_pos_int.y, tiles.items);
-                } else {
-                    gol.setTiles(pointer_pos_int.x, pointer_pos_int.y, clipboard.items);
-                }
+                const tiles = pat.getTiles(ally) catch break :blk;
+                defer tiles.deinit();
+                gol.setTiles(pointer_pos_int.x, pointer_pos_int.y, tiles.items);
             }
             if (rl.isKeyPressed(.r)) {
-                if (pat_list_active) |idx| {
-                    if (rl.isKeyDown(.left_shift) or rl.isKeyDown(.right_shift)) {
-                        patterns.getPatternRef(idx).orientation.rotateCCW();
-                    } else {
-                        patterns.getPatternRef(idx).orientation.rotateCW();
-                    }
+                if (rl.isKeyDown(.left_shift) or rl.isKeyDown(.right_shift)) {
+                    pat.orientation.rotateCCW();
+                } else {
+                    pat.orientation.rotateCW();
                 }
             }
             if (rl.isKeyPressed(.h)) {
-                if (pat_list_active) |idx| {
-                    patterns.getPatternRef(idx).orientation.flipH();
-                }
+                pat.orientation.flipH();
             }
             if (rl.isKeyPressed(.v)) {
-                if (pat_list_active) |idx| {
-                    patterns.getPatternRef(idx).orientation.flipV();
-                }
+                pat.orientation.flipV();
             }
             if (rl.isKeyPressed(.d)) {
                 selection = null;
@@ -210,13 +206,12 @@ pub fn main() !void {
                 drawTiles(camera, gol, selection, ally);
 
                 if (edit_mode == .Select) blk: {
-                    if (pat_list_active) |idx| {
-                        const tiles = patterns.getTiles(idx, ally) catch break :blk;
-                        defer tiles.deinit();
-                        drawPastePreview(camera, pointer_pos_int.x, pointer_pos_int.y, tiles.items);
-                    } else {
-                        drawPastePreview(camera, pointer_pos_int.x, pointer_pos_int.y, clipboard.items);
-                    }
+                    const tiles = if (pat_list_active) |idx|
+                        patterns.getTiles(idx, ally) catch break :blk
+                    else
+                        clipboard.getTiles(ally) catch break :blk;
+                    defer tiles.deinit();
+                    drawPastePreview(camera, pointer_pos_int.x, pointer_pos_int.y, tiles.items);
                 }
                 if (camera.zoom > 5) {
                     drawGrid(camera);

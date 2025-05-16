@@ -34,6 +34,11 @@ pub const Pattern = struct {
         }
         return oriented_tiles;
     }
+
+    pub fn setTiles(self: *Pattern, tiles: []const Tile) !void {
+        self.tiles.clearRetainingCapacity();
+        try self.tiles.appendSlice(tiles);
+    }
 };
 
 pub const Orientation = struct {
