@@ -16,7 +16,7 @@ const BasicGame = @import("games/StaticArray.zig");
 const HashsetGame = @import("games/Hashset.zig");
 const ui = @import("ui.zig");
 const pattern = @import("pattern.zig");
-const game_thread = @import("game-thread.zig");
+const GameThread = @import("GameThread.zig");
 
 var screen_size: Vec2 = .init(800, 500);
 
@@ -74,9 +74,10 @@ pub fn main() !void {
     var edit_mode: ui.EditMode = .Move;
     var sidebar_tab: ui.SidebarTabs = .Settings;
 
-    const thread = try Thread.spawn(.{}, game_thread.run, .{gol});
+    var game_thread: GameThread = .{};
+    const thread = try Thread.spawn(.{}, GameThread.run, .{ &game_thread, gol });
     defer thread.join();
-    defer game_thread.should_end = true;
+    defer game_thread.message(.{ .end_game = {} });
 
     while (!rl.windowShouldClose()) {
         if (updateScreenSize()) {
@@ -114,7 +115,7 @@ pub fn main() !void {
             // -----------
             if (ui.grabGuiElement(&held_element, hovered_element, .Grid)) {
                 const tile = if (rl.isMouseButtonDown(.left)) true else if (rl.isMouseButtonDown(.right)) false else break :blk;
-                gol.setTile(pointer_pos_int.x, pointer_pos_int.y, tile);
+                game_thread.message(.{ .set_tile = .{ .x = pointer_pos_int.x, .y = pointer_pos_int.y, .tile = tile } });
             }
         } else if (edit_mode == .Select) {
             // Modify the selection
@@ -171,8 +172,7 @@ pub fn main() !void {
             // TODO: make all this stuff not limited to select mode
             if (rl.isKeyPressed(.p)) blk: {
                 const tiles = pat.getTiles(ally) catch break :blk;
-                defer tiles.deinit();
-                gol.setTiles(pointer_pos_int.x, pointer_pos_int.y, tiles.items);
+                game_thread.message(.{ .set_tiles = .{ .x = pointer_pos_int.x, .y = pointer_pos_int.y, .tiles = tiles } });
             }
             if (rl.isKeyPressed(.r)) {
                 if (rl.isKeyDown(.left_shift) or rl.isKeyDown(.right_shift)) {
@@ -254,29 +254,29 @@ pub fn main() !void {
                 .Settings => {
                     ui.drawContainer(ui.controls);
 
-                    if (ui.drawButton(ui.clear_button, held_element)) game_thread.clear = true;
+                    if (ui.drawButton(ui.clear_button, held_element)) game_thread.message(.{ .clear = {} });
                     if (rl.checkCollisionPointRec(mouse_pos, ui.clear_button.getRect())) hovered_element = .ClearButton;
                     _ = ui.grabGuiElement(&held_element, hovered_element, .ClearButton);
 
-                    if (ui.drawButton(ui.randomize_button, held_element)) game_thread.randomize = true;
+                    if (ui.drawButton(ui.randomize_button, held_element)) game_thread.message(.{ .randomize = {} });
                     if (rl.checkCollisionPointRec(mouse_pos, ui.randomize_button.getRect())) hovered_element = .RandomizeButton;
                     _ = ui.grabGuiElement(&held_element, hovered_element, .RandomizeButton);
 
                     if (game_thread.game_paused) {
-                        if (ui.drawButton(ui.unpause_button, held_element)) game_thread.game_paused = false;
+                        if (ui.drawButton(ui.unpause_button, held_element)) game_thread.message(.{ .unpause = {} });
                         if (rl.checkCollisionPointRec(mouse_pos, ui.unpause_button.getRect())) hovered_element = .PauseButton;
                         _ = ui.grabGuiElement(&held_element, hovered_element, .PauseButton);
 
-                        if (ui.drawButton(ui.step_button, held_element)) game_thread.step = true;
+                        if (ui.drawButton(ui.step_button, held_element)) game_thread.message(.{ .step = {} });
                         if (rl.checkCollisionPointRec(mouse_pos, ui.step_button.getRect())) hovered_element = .StepButton;
                         _ = ui.grabGuiElement(&held_element, hovered_element, .StepButton);
                     } else {
-                        if (ui.drawButton(ui.pause_button, held_element)) game_thread.game_paused = true;
+                        if (ui.drawButton(ui.pause_button, held_element)) game_thread.message(.{ .pause = {} });
                         if (rl.checkCollisionPointRec(mouse_pos, ui.pause_button.getRect())) hovered_element = .PauseButton;
                         _ = ui.grabGuiElement(&held_element, hovered_element, .PauseButton);
 
                         rg.guiSetState(@intFromEnum(rg.GuiState.state_disabled));
-                        if (ui.drawButton(ui.step_button, held_element)) game_thread.step = true;
+                        if (ui.drawButton(ui.step_button, held_element)) game_thread.message(.{ .step = {} });
                         if (rl.checkCollisionPointRec(mouse_pos, ui.step_button.getRect())) hovered_element = .StepButton;
                         _ = ui.grabGuiElement(&held_element, hovered_element, .StepButton);
                         rg.guiSetState(@intFromEnum(rg.GuiState.state_normal));
@@ -305,7 +305,10 @@ pub fn main() !void {
                 },
             }
 
-            game_thread.time_target_ns = std.time.ns_per_s / @as(u64, @intCast(@max(game_speed, 1)));
+            const new_target_speed = std.time.ns_per_s / @as(u64, @intCast(@max(game_speed, 1)));
+            if (new_target_speed != game_thread.time_target_ns) {
+                game_thread.message(.{ .set_game_speed = new_target_speed });
+            }
 
             // TODO: make average gen time calculation not suck
             const avg_time = blk: {
