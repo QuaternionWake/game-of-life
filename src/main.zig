@@ -71,7 +71,7 @@ pub fn main() !void {
 
     var game_speed: i32 = 60;
 
-    var edit_mode: ui.EditMode = .Move;
+    var editing: bool = false;
     var sidebar_tab: ui.SidebarTabs = .Settings;
 
     var game_thread: GameThread = .{};
@@ -94,10 +94,10 @@ pub fn main() !void {
         };
         const scroll = rl.getMouseWheelMove();
 
-        if (edit_mode == .Move or rl.isKeyDown(.left_control)) {
-            // Move and zoom the camera
-            // ------------------------
+        if ((!editing and !rl.isKeyDown(.left_control)) or (editing and rl.isKeyDown(.left_control))) {
             if (ui.grabGuiElement(&held_element, hovered_element, .Grid)) {
+                // Move and zoom the camera
+                // ------------------------
                 if (rl.isMouseButtonDown(.left)) {
                     const delta = rl.getMouseDelta().scale(-1 / camera.zoom);
                     camera.target = camera.target.add(delta);
@@ -109,19 +109,10 @@ pub fn main() !void {
 
                     camera.target = pointer_pos.subtract(mouse_pos.scale(1 / camera.zoom));
                 }
-            }
-        } else if (edit_mode == .Edit) blk: {
-            // Edit a tile
-            // -----------
-            if (ui.grabGuiElement(&held_element, hovered_element, .Grid)) {
-                const tile = if (rl.isMouseButtonDown(.left)) true else if (rl.isMouseButtonDown(.right)) false else break :blk;
-                game_thread.message(.{ .set_tile = .{ .x = pointer_pos_int.x, .y = pointer_pos_int.y, .tile = tile } });
-            }
-        } else if (edit_mode == .Select) {
-            // Modify the selection
-            // --------------------
-            if (ui.grabGuiElement(&held_element, hovered_element, .Grid)) {
-                if (rl.isMouseButtonPressed(.left)) blk: {
+
+                // Modify the selection
+                // --------------------
+                if (rl.isMouseButtonPressed(.right)) blk: {
                     if (selection) |s| {
                         if (grabCorner(pointer_pos, s, camera)) |c| {
                             held_corner = c;
@@ -131,7 +122,7 @@ pub fn main() !void {
                     selection = Rect.init(pointer_pos.x, pointer_pos.y, 0, 0);
                     held_corner = .BR;
                 }
-                if (rl.isMouseButtonDown(.left)) blk: {
+                if (rl.isMouseButtonDown(.right)) blk: {
                     if (selection) |*s| {
                         if (held_corner) |c| {
                             held_corner = resizeSelection(pointer_delta, s, c);
@@ -140,63 +131,66 @@ pub fn main() !void {
                     }
                     selection = Rect.init(pointer_pos.x, pointer_pos.y, 0, 0);
                     held_corner = .BR;
-                } else if (rl.isMouseButtonDown(.right)) {
-                    if (selection) |*s| {
-                        s.x += pointer_delta.x;
-                        s.y += pointer_delta.y;
-                    }
                 }
             }
-            if (!rl.isMouseButtonDown(.left)) {
-                held_corner = null;
-            }
-            if (rl.isKeyPressed(.c)) {
-                if (selection) |sel| {
-                    const bounds = getBounds(sel.x, sel.y, sel.x + sel.width, sel.y + sel.height);
-
-                    var tiles = gol.getTiles(bounds.x_start, bounds.y_start, bounds.x_end, bounds.y_end, ally);
-                    defer tiles.deinit();
-                    for (tiles.items) |*tile| {
-                        tile.* = .{
-                            .x = tile.x - pointer_pos_int.x,
-                            .y = tile.y - pointer_pos_int.y,
-                        };
-                    }
-
-                    clipboard.setTiles(tiles.items) catch {};
-                    clipboard.orientation = .{};
-                }
-            }
-
-            const pat = if (pat_list_active) |idx| patterns.getPatternRef(idx) else &clipboard;
-            // TODO: make all this stuff not limited to select mode
-            if (rl.isKeyPressed(.p)) blk: {
-                const tiles = pat.getTiles(ally) catch break :blk;
-                game_thread.message(.{ .set_tiles = .{ .x = pointer_pos_int.x, .y = pointer_pos_int.y, .tiles = tiles } });
-            }
-            if (rl.isKeyPressed(.r)) {
-                if (rl.isKeyDown(.left_shift) or rl.isKeyDown(.right_shift)) {
-                    pat.orientation.rotateCCW();
-                } else {
-                    pat.orientation.rotateCW();
-                }
-            }
-            if (rl.isKeyPressed(.h)) {
-                pat.orientation.flipH();
-            }
-            if (rl.isKeyPressed(.v)) {
-                pat.orientation.flipV();
-            }
-            if (rl.isKeyPressed(.d)) {
-                selection = null;
-                held_corner = null;
+        } else blk: {
+            // Edit a tile
+            // -----------
+            if (ui.grabGuiElement(&held_element, hovered_element, .Grid)) {
+                const tile = if (rl.isMouseButtonDown(.left)) true else if (rl.isMouseButtonDown(.right)) false else break :blk;
+                game_thread.message(.{ .set_tile = .{ .x = pointer_pos_int.x, .y = pointer_pos_int.y, .tile = tile } });
             }
         }
-        if (edit_mode != .Select) {
+
+        // Manipulate the held pattern
+        // ---------------------------
+        if (rl.isKeyPressed(.c)) {
+            if (selection) |sel| {
+                const bounds = getBounds(sel.x, sel.y, sel.x + sel.width, sel.y + sel.height);
+
+                var tiles = gol.getTiles(bounds.x_start, bounds.y_start, bounds.x_end, bounds.y_end, ally);
+                defer tiles.deinit();
+                for (tiles.items) |*tile| {
+                    tile.* = .{
+                        .x = tile.x - pointer_pos_int.x,
+                        .y = tile.y - pointer_pos_int.y,
+                    };
+                }
+
+                clipboard.setTiles(tiles.items) catch {};
+                clipboard.orientation = .{};
+            }
+        }
+        const pat = if (pat_list_active) |idx| patterns.getPatternRef(idx) else &clipboard;
+        if (rl.isKeyPressed(.p)) blk: {
+            const tiles = pat.getTiles(ally) catch break :blk;
+            game_thread.message(.{ .set_tiles = .{ .x = pointer_pos_int.x, .y = pointer_pos_int.y, .tiles = tiles } });
+        }
+        if (rl.isKeyPressed(.r)) {
+            if (rl.isKeyDown(.left_shift) or rl.isKeyDown(.right_shift)) {
+                pat.orientation.rotateCCW();
+            } else {
+                pat.orientation.rotateCW();
+            }
+        }
+        if (rl.isKeyPressed(.h)) {
+            pat.orientation.flipH();
+        }
+        if (rl.isKeyPressed(.v)) {
+            pat.orientation.flipV();
+        }
+
+        if (!rl.isMouseButtonDown(.right)) {
+            held_corner = null;
+        }
+
+        if (rl.isKeyPressed(.d)) {
             selection = null;
             held_corner = null;
         }
 
+        // Drawing
+        // -------
         rl.beginDrawing();
         {
             rl.clearBackground(.ray_white);
@@ -205,14 +199,7 @@ pub fn main() !void {
             {
                 drawTiles(camera, gol, selection, ally);
 
-                if (edit_mode == .Select) blk: {
-                    const tiles = if (pat_list_active) |idx|
-                        patterns.getTiles(idx, ally) catch break :blk
-                    else
-                        clipboard.getTiles(ally) catch break :blk;
-                    defer tiles.deinit();
-                    drawPastePreview(camera, pointer_pos_int.x, pointer_pos_int.y, tiles.items);
-                }
+                drawPastePreview(camera, pointer_pos_int.x, pointer_pos_int.y, pat.tiles.items);
                 if (camera.zoom > 5) {
                     drawGrid(camera);
                 }
@@ -320,8 +307,9 @@ pub fn main() !void {
             };
             rl.drawText(rl.textFormat("Avg gen time: %.2fus", .{avg_time}), 90, 20, 17, .dark_gray);
 
-            edit_mode = ui.drawRadioButtons(ui.edit_mode_radio, edit_mode, held_element);
-            const radio_rect = Rect.init(10, 10, 70, 70);
+            editing = ui.drawCheckbox(ui.edit_mode_checkbox, editing, held_element);
+            // TODO
+            const radio_rect = Rect.init(15, 15, 65, 25);
 
             if (rl.checkCollisionPointRec(mouse_pos, radio_rect)) hovered_element = .EditMode;
             _ = ui.grabGuiElement(&held_element, hovered_element, .EditMode);
