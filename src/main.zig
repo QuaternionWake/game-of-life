@@ -71,7 +71,6 @@ pub fn main() !void {
 
     var game_speed: i32 = 60;
 
-    var editing: bool = false;
     var sidebar_tab: ui.SidebarTabs = .Settings;
 
     var game_thread: GameThread = .{};
@@ -94,7 +93,7 @@ pub fn main() !void {
         };
         const scroll = rl.getMouseWheelMove();
 
-        if ((!editing and !rl.isKeyDown(.left_control)) or (editing and rl.isKeyDown(.left_control))) {
+        if (!rl.isKeyDown(.left_control)) {
             if (ui.grabGuiElement(&held_element, hovered_element, .Grid)) {
                 // Move and zoom the camera
                 // ------------------------
@@ -305,14 +304,7 @@ pub fn main() !void {
                 }
                 break :blk @as(f64, @floatFromInt(sum)) / std.time.ns_per_us / game_thread.times.len;
             };
-            rl.drawText(rl.textFormat("Avg gen time: %.2fus", .{avg_time}), 90, 20, 17, .dark_gray);
-
-            editing = ui.drawCheckbox(ui.edit_mode_checkbox, editing, held_element);
-            // TODO
-            const radio_rect = Rect.init(15, 15, 65, 25);
-
-            if (rl.checkCollisionPointRec(mouse_pos, radio_rect)) hovered_element = .EditMode;
-            _ = ui.grabGuiElement(&held_element, hovered_element, .EditMode);
+            rl.drawText(rl.textFormat("Avg gen time: %.2fus", .{avg_time}), 20, 20, 17, .dark_gray);
 
             if (rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect()) and hovered_element == .Grid) hovered_element = .Sidebar;
             _ = ui.grabGuiElement(&held_element, hovered_element, .Sidebar);

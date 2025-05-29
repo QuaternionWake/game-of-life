@@ -10,7 +10,6 @@ pub const sidebar_width = 250;
 pub const GuiElement = enum {
     Grid,
     Sidebar,
-    EditMode,
 
     TabSettings,
     TabPatterns,
