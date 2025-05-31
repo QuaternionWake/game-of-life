@@ -35,8 +35,10 @@ game_paused: bool = false,
 
 time_target_ns: u64 = std.time.ns_per_s / 60,
 
-times: [256]u64 = std.mem.zeroes([256]u64),
-time_idx: u8 = 0,
+times: [16]u64 = std.mem.zeroes([16]u64),
+time_idx: u4 = 0,
+
+generation: u64 = 0,
 
 pub fn run(self: *GameThread, game: Gol) !void {
     var random = std.Random.DefaultPrng.init(blk: {
@@ -65,15 +67,25 @@ pub fn run(self: *GameThread, game: Gol) !void {
             game.next();
             self.times[self.time_idx] = timer.read();
             self.time_idx +%= 1;
+            self.generation += 1;
             continue;
         };
         switch (msg) {
             .pause => self.game_paused = true,
             .unpause => self.game_paused = false,
             .set_game_speed => |val| self.time_target_ns = val,
-            .step => game.next(),
-            .clear => game.clear(),
-            .randomize => game.randomize(rng),
+            .step => {
+                game.next();
+                self.generation += 1;
+            },
+            .clear => {
+                game.clear();
+                self.generation = 0;
+            },
+            .randomize => {
+                game.randomize(rng);
+                self.generation = 0;
+            },
             .end_game => break,
             .set_tile => |args| game.setTile(args.x, args.y, args.tile),
             .set_tiles => |args| {

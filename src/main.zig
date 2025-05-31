@@ -56,6 +56,8 @@ pub fn main() !void {
     const patterns = try pattern.PatternList.init(ally);
     defer patterns.deinit();
 
+    var debug_menu: bool = false;
+
     var pat_list_scroll: i32 = 0;
     var pat_list_active: ?usize = null;
     var pat_list_focused: ?usize = null;
@@ -188,6 +190,10 @@ pub fn main() !void {
             held_corner = null;
         }
 
+        if (rl.isKeyPressed(.f3)) {
+            debug_menu = !debug_menu;
+        }
+
         // Drawing
         // -------
         rl.beginDrawing();
@@ -296,15 +302,30 @@ pub fn main() !void {
                 game_thread.message(.{ .set_game_speed = new_target_speed });
             }
 
-            // TODO: make average gen time calculation not suck
-            const avg_time = blk: {
-                var sum: u64 = 0;
-                for (game_thread.times) |time| {
-                    sum += time;
-                }
-                break :blk @as(f64, @floatFromInt(sum)) / std.time.ns_per_us / game_thread.times.len;
-            };
-            rl.drawText(rl.textFormat("Avg gen time: %.2fus", .{avg_time}), 20, 20, 17, .dark_gray);
+            if (debug_menu) {
+                const avg_time_ns = blk: {
+                    var sum: u64 = 0;
+                    for (game_thread.times) |time| {
+                        sum += time;
+                    }
+                    break :blk @as(f64, @floatFromInt(sum)) / game_thread.times.len;
+                };
+                const avg_time_arg, const avg_time_fmt = if (avg_time_ns < std.time.ns_per_ms) blk: {
+                    break :blk .{ avg_time_ns / std.time.ns_per_us, "Avg gen time: %.2fus" };
+                } else if (avg_time_ns < std.time.ns_per_s) blk: {
+                    break :blk .{ avg_time_ns / std.time.ns_per_ms, "Avg gen time: %.2fms" };
+                } else blk: {
+                    break :blk .{ avg_time_ns / std.time.ns_per_s, "Avg gen time: %.2fs" };
+                };
+                // TODO
+                const gens_per_s = 1 / (avg_time_ns / std.time.ns_per_s);
+                rl.drawText(rl.textFormat(avg_time_fmt, .{avg_time_arg}), 10, 10, 17, .dark_gray);
+                rl.drawText(rl.textFormat("Gens per sec (max/target): %.0f/%d", .{ gens_per_s, game_speed }), 10, 30, 17, .dark_gray);
+                rl.drawText(rl.textFormat("Generation: %d", .{game_thread.generation}), 10, 50, 17, .dark_gray);
+                rl.drawText(rl.textFormat("Mouse pos: %.0f, %.0f", .{ mouse_pos.x, mouse_pos.y }), 10, 70, 17, .dark_gray);
+                rl.drawText(rl.textFormat("Pointer pos: %.2f, %.2f", .{ pointer_pos.x, pointer_pos.y }), 10, 90, 17, .dark_gray);
+                rl.drawText(rl.textFormat("Camera pos: %.2f, %.2f, Zoom: %.4f", .{ camera.target.x, camera.target.y, camera.zoom }), 10, 110, 17, .dark_gray);
+            }
 
             if (rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect()) and hovered_element == .Grid) hovered_element = .Sidebar;
             _ = ui.grabGuiElement(&held_element, hovered_element, .Sidebar);
