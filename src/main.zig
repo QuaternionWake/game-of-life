@@ -27,6 +27,8 @@ pub fn main() !void {
 
     rl.setTargetFPS(60);
 
+    rl.setExitKey(.null);
+
     var camera = rl.Camera2D{
         .offset = .zero(),
         .target = .zero(),
@@ -57,6 +59,7 @@ pub fn main() !void {
     defer patterns.deinit();
 
     var debug_menu: bool = false;
+    var help_menu: bool = false;
 
     var pat_list_scroll: i32 = 0;
     var pat_list_active: ?usize = null;
@@ -190,8 +193,29 @@ pub fn main() !void {
             held_corner = null;
         }
 
+        if (rl.isKeyPressed(.escape)) {
+            clipboard.setTiles(&.{}) catch {};
+            pat_list_active = null;
+        }
+
+        if (rl.isKeyPressed(.space)) {
+            if (game_thread.game_paused) {
+                game_thread.message(.{ .unpause = {} });
+            } else {
+                game_thread.message(.{ .pause = {} });
+            }
+        }
+
+        if (rl.isKeyPressed(.f1)) {
+            help_menu = !help_menu;
+        }
+
         if (rl.isKeyPressed(.f3)) {
             debug_menu = !debug_menu;
+        }
+
+        if (rl.isKeyPressed(.f11)) {
+            rl.toggleFullscreen();
         }
 
         // Drawing
@@ -325,6 +349,13 @@ pub fn main() !void {
                 rl.drawText(rl.textFormat("Mouse pos: %.0f, %.0f", .{ mouse_pos.x, mouse_pos.y }), 10, 70, 17, .dark_gray);
                 rl.drawText(rl.textFormat("Pointer pos: %.2f, %.2f", .{ pointer_pos.x, pointer_pos.y }), 10, 90, 17, .dark_gray);
                 rl.drawText(rl.textFormat("Camera pos: %.2f, %.2f, Zoom: %.4f", .{ camera.target.x, camera.target.y, camera.zoom }), 10, 110, 17, .dark_gray);
+            }
+
+            if (help_menu) {
+                rl.drawText("F1 - Help    F3 - Debug menu    F11 - Fullscreen", 10, @as(i32, @intFromFloat(screen_size.y)) - 70 - 17, 17, .dark_gray);
+                rl.drawText("Mouse L/R: Drag/Select    CTRL + Mouse - Edit board", 10, @as(i32, @intFromFloat(screen_size.y)) - 50 - 17, 17, .dark_gray);
+                rl.drawText("C - Copy    P - Paste    H/V - Flip horizontally/vertically    R - Rotate [SHIFT to invert]", 10, @as(i32, @intFromFloat(screen_size.y)) - 30 - 17, 17, .dark_gray);
+                rl.drawText("D - Deselect    ESC - Clear clipboard & pattern    SPACE - Pause", 10, @as(i32, @intFromFloat(screen_size.y)) - 10 - 17, 17, .dark_gray);
             }
 
             if (rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect()) and hovered_element == .Grid) hovered_element = .Sidebar;
@@ -519,8 +550,15 @@ fn otherScreenCorner(camera: rl.Camera2D) Vec2 {
 
 fn updateScreenSize() bool {
     const new_size: Vec2 = .init(
-        @floatFromInt(rl.getScreenWidth()),
-        @floatFromInt(rl.getScreenHeight()),
+        @floatFromInt(rl.getRenderWidth()),
+        @floatFromInt(rl.getRenderHeight()),
+    );
+
+    // For some reason render size and screen size get desynced when exiting
+    // fullscreen which breaks rendering so we must do this to keep them synced
+    rl.setWindowSize(
+        @intFromFloat(new_size.x),
+        @intFromFloat(new_size.y),
     );
 
     if (new_size.equals(screen_size) == 0) {
