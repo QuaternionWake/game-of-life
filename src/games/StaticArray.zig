@@ -91,25 +91,25 @@ fn next(self: *Self) void {
     const write_board = self.getBoard();
     for (1..y_len - 1) |y| {
         for (1..x_len - 1) |x| {
-            write_board[y][x] = nextTile(read_board, x, y);
+            write_board[y][x] = nextTile(read_board, .{ .center = .{ .x = x, .y = y } }, .center);
         }
     }
     for (1..x_len - 1) |x| {
-        write_board[0][x] = nextTileEdgeT(read_board, x);
+        write_board[0][x] = nextTile(read_board, .{ .top = .{ .x = x } }, .top);
     }
     for (1..x_len - 1) |x| {
-        write_board[y_len - 1][x] = nextTileEdgeB(read_board, x);
+        write_board[y_len - 1][x] = nextTile(read_board, .{ .bottom = .{ .x = x } }, .bottom);
     }
     for (1..y_len - 1) |y| {
-        write_board[y][0] = nextTileEdgeR(read_board, y);
+        write_board[y][0] = nextTile(read_board, .{ .left = .{ .y = y } }, .left);
     }
     for (1..y_len - 1) |y| {
-        write_board[y][x_len - 1] = nextTileEdgeL(read_board, y);
+        write_board[y][x_len - 1] = nextTile(read_board, .{ .right = .{ .y = y } }, .right);
     }
-    write_board[0][0] = nextTileCornerTL(read_board);
-    write_board[0][x_len - 1] = nextTileCornerTR(read_board);
-    write_board[y_len - 1][0] = nextTileCornerTL(read_board);
-    write_board[y_len - 1][x_len - 1] = nextTileCornerTL(read_board);
+    write_board[0][0] = nextTile(read_board, .{ .top_left = {} }, .top_left);
+    write_board[0][x_len - 1] = nextTile(read_board, .{ .top_right = {} }, .top_right);
+    write_board[y_len - 1][0] = nextTile(read_board, .{ .bottom_left = {} }, .bottom_left);
+    write_board[y_len - 1][x_len - 1] = nextTile(read_board, .{ .bottom_right = {} }, .bottom_right);
 }
 
 fn getBoard(self: *Self) *Board {
@@ -128,16 +128,36 @@ fn getInactiveBoard(self: *Self) *Board {
     }
 }
 
-fn nextTile(board: *const Board, x: usize, y: usize) bool {
+fn nextTile(board: *const Board, tile: TileValue, comptime tile_type: TileType) bool {
+    const x, const y = tile.getCoords(tile_type);
     const count =
-        @as(u8, @intFromBool(board[y - 1][x - 1])) +
-        @as(u8, @intFromBool(board[y - 1][x + 0])) +
-        @as(u8, @intFromBool(board[y - 1][x + 1])) +
-        @as(u8, @intFromBool(board[y + 0][x - 1])) +
-        @as(u8, @intFromBool(board[y + 0][x + 1])) +
-        @as(u8, @intFromBool(board[y + 1][x - 1])) +
-        @as(u8, @intFromBool(board[y + 1][x + 0])) +
-        @as(u8, @intFromBool(board[y + 1][x + 1]));
+        // Edges
+        blk: {
+            break :blk if (comptime tile_type.hasTop()) @as(u8, @intFromBool(board[y - 1][x])) else 0;
+        } +
+        blk: {
+            break :blk if (comptime tile_type.hasBottom()) @as(u8, @intFromBool(board[y + 1][x])) else 0;
+        } +
+        blk: {
+            break :blk if (comptime tile_type.hasLeft()) @as(u8, @intFromBool(board[y][x - 1])) else 0;
+        } +
+        blk: {
+            break :blk if (comptime tile_type.hasRight()) @as(u8, @intFromBool(board[y][x + 1])) else 0;
+        } +
+
+        // Corners
+        blk: {
+            break :blk if (comptime tile_type.hasTopLeft()) @as(u8, @intFromBool(board[y - 1][x - 1])) else 0;
+        } +
+        blk: {
+            break :blk if (comptime tile_type.hasTopRight()) @as(u8, @intFromBool(board[y - 1][x + 1])) else 0;
+        } +
+        blk: {
+            break :blk if (comptime tile_type.hasBottomLeft()) @as(u8, @intFromBool(board[y + 1][x - 1])) else 0;
+        } +
+        blk: {
+            break :blk if (comptime tile_type.hasBottomRight()) @as(u8, @intFromBool(board[y + 1][x + 1])) else 0;
+        };
 
     if (board[y][x]) {
         return count == 2 or count == 3;
@@ -146,114 +166,96 @@ fn nextTile(board: *const Board, x: usize, y: usize) bool {
     }
 }
 
-fn nextTileEdgeT(board: *const Board, x: usize) bool {
-    const count =
-        @as(u8, @intFromBool(board[0][x - 1])) +
-        @as(u8, @intFromBool(board[0][x + 1])) +
-        @as(u8, @intFromBool(board[1][x - 1])) +
-        @as(u8, @intFromBool(board[1][x + 0])) +
-        @as(u8, @intFromBool(board[1][x + 1]));
+const TileValue = union {
+    center: struct { x: usize, y: usize },
+    top: struct { x: usize },
+    bottom: struct { x: usize },
+    left: struct { y: usize },
+    right: struct { y: usize },
+    top_left: void,
+    top_right: void,
+    bottom_left: void,
+    bottom_right: void,
 
-    if (board[0][x]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
+    fn getCoords(self: TileValue, tile_type: TileType) struct { usize, usize } {
+        return switch (tile_type) {
+            .center => .{ self.center.x, self.center.y },
+            .top => .{ self.top.x, 0 },
+            .bottom => .{ self.bottom.x, y_len - 1 },
+            .left => .{ 0, self.left.y },
+            .right => .{ x_len - 1, self.right.y },
+            .top_left => .{ 0, 0 },
+            .top_right => .{ x_len - 1, 0 },
+            .bottom_left => .{ 0, y_len - 1 },
+            .bottom_right => .{ x_len - 1, y_len - 1 },
+        };
     }
-}
+};
 
-fn nextTileEdgeB(board: *const Board, x: usize) bool {
-    const count =
-        @as(u8, @intFromBool(board[y_len - 2][x - 1])) +
-        @as(u8, @intFromBool(board[y_len - 2][x + 0])) +
-        @as(u8, @intFromBool(board[y_len - 2][x + 1])) +
-        @as(u8, @intFromBool(board[y_len - 1][x - 1])) +
-        @as(u8, @intFromBool(board[y_len - 1][x + 1]));
+const TileType = enum {
+    center,
+    top,
+    bottom,
+    left,
+    right,
+    top_left,
+    top_right,
+    bottom_left,
+    bottom_right,
 
-    if (board[0][x]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
+    fn hasTop(self: TileType) bool {
+        return switch (self) {
+            .center, .bottom, .left, .right, .bottom_left, .bottom_right => true,
+            else => false,
+        };
     }
-}
 
-fn nextTileEdgeR(board: *const Board, y: usize) bool {
-    const count =
-        @as(u8, @intFromBool(board[y - 1][0])) +
-        @as(u8, @intFromBool(board[y - 1][1])) +
-        @as(u8, @intFromBool(board[y + 0][1])) +
-        @as(u8, @intFromBool(board[y + 1][0])) +
-        @as(u8, @intFromBool(board[y + 1][1]));
-
-    if (board[y][0]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
+    fn hasBottom(self: TileType) bool {
+        return switch (self) {
+            .center, .top, .left, .right, .top_left, .top_right => true,
+            else => false,
+        };
     }
-}
 
-fn nextTileEdgeL(board: *const Board, y: usize) bool {
-    const count =
-        @as(u8, @intFromBool(board[y - 1][x_len - 2])) +
-        @as(u8, @intFromBool(board[y - 1][x_len - 1])) +
-        @as(u8, @intFromBool(board[y + 0][x_len - 2])) +
-        @as(u8, @intFromBool(board[y + 1][x_len - 2])) +
-        @as(u8, @intFromBool(board[y + 1][x_len - 1]));
-
-    if (board[y][x_len - 1]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
+    fn hasLeft(self: TileType) bool {
+        return switch (self) {
+            .center, .top, .bottom, .right, .top_right, .bottom_right => true,
+            else => false,
+        };
     }
-}
 
-fn nextTileCornerTL(board: *const Board) bool {
-    const count =
-        @as(u8, @intFromBool(board[0][1])) +
-        @as(u8, @intFromBool(board[1][0])) +
-        @as(u8, @intFromBool(board[1][1]));
-
-    if (board[0][0]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
+    fn hasRight(self: TileType) bool {
+        return switch (self) {
+            .center, .top, .bottom, .left, .top_left, .bottom_left => true,
+            else => false,
+        };
     }
-}
 
-fn nextTileCornerTR(board: *const Board) bool {
-    const count =
-        @as(u8, @intFromBool(board[0][x_len - 2])) +
-        @as(u8, @intFromBool(board[1][x_len - 2])) +
-        @as(u8, @intFromBool(board[1][x_len - 1]));
-
-    if (board[0][x_len - 1]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
+    fn hasTopLeft(self: TileType) bool {
+        return switch (self) {
+            .center, .bottom, .right, .bottom_right => true,
+            else => false,
+        };
     }
-}
 
-fn nextTileCornerBL(board: *const Board) bool {
-    const count =
-        @as(u8, @intFromBool(board[y_len - 2][0])) +
-        @as(u8, @intFromBool(board[y_len - 2][1])) +
-        @as(u8, @intFromBool(board[y_len - 1][1]));
-
-    if (board[y_len - 1][0]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
+    fn hasTopRight(self: TileType) bool {
+        return switch (self) {
+            .center, .bottom, .left, .bottom_left => true,
+            else => false,
+        };
     }
-}
 
-fn nextTileCornerBR(board: *const Board) bool {
-    const count =
-        @as(u8, @intFromBool(board[y_len - 2][x_len - 2])) +
-        @as(u8, @intFromBool(board[y_len - 2][x_len - 1])) +
-        @as(u8, @intFromBool(board[y_len - 1][x_len - 1]));
-
-    if (board[y_len - 1][x_len - 1]) {
-        return count == 2 or count == 3;
-    } else {
-        return count == 3;
+    fn hasBottomLeft(self: TileType) bool {
+        return switch (self) {
+            .center, .top, .right, .top_right => true,
+            else => false,
+        };
     }
-}
+
+    fn hasBottomRight(self: TileType) bool {
+        return switch (self) {
+            .center, .top, .left, .top_left => true,
+            else => false,
+        };
+    }
+};
