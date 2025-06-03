@@ -228,7 +228,11 @@ pub fn main() !void {
             {
                 drawTiles(camera, gol, selection, ally);
 
-                drawPastePreview(camera, pointer_pos_int.x, pointer_pos_int.y, pat.tiles.items);
+                blk: {
+                    const tiles = pat.getTiles(ally) catch break :blk;
+                    defer tiles.deinit();
+                    drawPastePreview(camera, pointer_pos_int.x, pointer_pos_int.y, tiles.items);
+                }
                 if (camera.zoom > 5) {
                     drawGrid(camera);
                 }
