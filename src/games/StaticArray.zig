@@ -50,7 +50,7 @@ fn randomize(self: *Self, rng: Random) void {
 
 fn setTile(self: *Self, x: isize, y: isize, tile: bool) void {
     const board = self.getBoard();
-    if (x >= 0 and x < x_len and y > 0 and y < y_len) {
+    if (x >= 0 and x < x_len and y >= 0 and y < y_len) {
         board[@intCast(y)][@intCast(x)] = tile;
     }
 }
@@ -59,7 +59,7 @@ fn setTiles(self: *Self, x: isize, y: isize, tiles: []Tile) void {
     const board = self.getBoard();
     for (tiles) |orig_tile| {
         const tile = .{ .x = orig_tile.x + x, .y = orig_tile.y + y };
-        if (tile.x >= 0 and tile.x < x_len and tile.y > 0 and tile.y < y_len) {
+        if (tile.x >= 0 and tile.x < x_len and tile.y >= 0 and tile.y < y_len) {
             board[@intCast(tile.y)][@intCast(tile.x)] = true;
         }
     }
@@ -74,7 +74,7 @@ fn getTiles(self: *Self, x_start: isize, y_start: isize, x_end: isize, y_end: is
     const y_end_ = math.lossyCast(usize, @min(y_end, y_len));
 
     var tiles = List(Tile).init(ally);
-    if (y_start_ > y_end_ or x_start_ > y_end_) return tiles;
+    if (y_start_ > y_end_ or x_start_ > x_end_) return tiles;
     for (y_start_..y_end_) |y| {
         for (x_start_..x_end_) |x| {
             if (board[y][x]) {
