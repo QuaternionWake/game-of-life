@@ -5,6 +5,8 @@ const rg = @import("raygui");
 const Vec2 = rl.Vector2;
 const Rect = rl.Rectangle;
 
+const GameType = @import("main.zig").GameType;
+
 pub const sidebar_width = 250;
 
 pub const GuiElement = enum {
@@ -88,19 +90,15 @@ pub fn drawContainer(c: Container) void {
     }
 }
 
-pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype) struct { @TypeOf(tab_enum), ?@TypeOf(tab_enum) } {
-    if (@typeInfo(@TypeOf(tab_enum)) != .@"enum") {
-        @compileError("Expected enum type, found '" ++ @typeName(tab_enum) ++ "'");
-    }
-
+pub fn drawTabButtons(tb: TabButtons, current_tab: tb.tabs) struct { tb.tabs, ?tb.tabs } {
     var rect = tb.getRect();
 
-    const fields = std.meta.fields(@TypeOf(tab_enum));
+    const fields = std.meta.fields(tb.tabs);
 
-    var retval = tab_enum;
-    var hovering: ?@TypeOf(tab_enum) = null;
+    var retval = current_tab;
+    var hovering: ?tb.tabs = null;
     inline for (fields) |field| {
-        if (@as(@TypeOf(tab_enum), @enumFromInt(field.value)).getGuiElement() == held_element) {
+        if (@as(tb.tabs, @enumFromInt(field.value)).getGuiElement() == held_element) {
             if (rg.guiButton(rect, field.name) != 0) {
                 retval = @enumFromInt(field.value);
             }
@@ -166,12 +164,8 @@ pub fn drawSpinner(sb: Spinner, val: *i32, min: i32, max: i32, editing: bool) bo
     }
 }
 
-pub fn drawDropdown(d: Dropdown, selected: anytype, edit_mode: *bool) @TypeOf(selected) {
-    if (@typeInfo(@TypeOf(selected)) != .@"enum") {
-        @compileError("Expected enum type, found '" ++ @typeName(selected) ++ "'");
-    }
-
-    const fields = std.meta.fields(@TypeOf(selected));
+pub fn drawDropdown(d: Dropdown, selected: d.contents, edit_mode: *bool) d.contents {
+    const fields = std.meta.fields(d.contents);
     const field_names = comptime blk: {
         var len = 0;
         for (fields) |field| {
@@ -316,6 +310,7 @@ const TabButtons = struct {
     pos: Vec2,
     size: Vec2,
     offset: Vec2,
+    tabs: type,
 
     pub fn getRect(self: TabButtons) Rect {
         const pos = self.getPos();
@@ -386,6 +381,7 @@ const Dropdown = struct {
     container: ?*const Container,
     pos: Vec2,
     size: Vec2,
+    contents: type,
     element: GuiElement,
 
     pub fn getRect(self: Dropdown) Rect {
@@ -515,6 +511,7 @@ pub const sidebar_tab_buttons: TabButtons = .{
     .pos = Vec2.init(-30, 30),
     .size = Vec2.init(32, 30),
     .offset = Vec2.init(0, 35),
+    .tabs = SidebarTabs,
 };
 
 pub const game_speed_slider: Slider = .{
@@ -538,5 +535,6 @@ pub const game_type_dropdown: Dropdown = .{
     .container = &sidebar,
     .pos = Vec2.init(20, 40),
     .size = Vec2.init(sidebar_width - 40, 40),
+    .contents = GameType,
     .element = .GameTypeDropdown,
 };

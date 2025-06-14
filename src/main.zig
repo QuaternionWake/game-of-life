@@ -21,7 +21,7 @@ const GameThread = @import("GameThread.zig");
 
 var screen_size: Vec2 = .init(800, 500);
 
-const GameType = enum { @"Static Array", @"Dynamic Array", Hashset };
+pub const GameType = enum { @"Static Array", @"Dynamic Array", Hashset };
 
 pub fn main() !void {
     rl.initWindow(@intFromFloat(screen_size.x), @intFromFloat(screen_size.y), "Game of Life");
