@@ -13,6 +13,7 @@ pub const GuiElement = enum {
 
     TabSettings,
     TabPatterns,
+    TabGameTypes,
 
     ClearButton,
     RandomizeButton,
@@ -23,6 +24,8 @@ pub const GuiElement = enum {
     GameSpeedSpinner,
 
     PatternList,
+
+    GameTypeDropdown,
 };
 
 pub fn grabGuiElement(held_element: *?GuiElement, hovered_element: GuiElement, element: GuiElement) bool {
@@ -160,6 +163,48 @@ pub fn drawSpinner(sb: Spinner, val: *i32, min: i32, max: i32, editing: bool, he
         rg.guiUnlock();
         return editing;
     }
+}
+
+pub fn drawDropdown(d: Dropdown, selected: anytype, edit_mode: *bool, held_element: ?GuiElement) @TypeOf(selected) {
+    if (@typeInfo(@TypeOf(selected)) != .@"enum") {
+        @compileError("Expected enum type, found '" ++ @typeName(selected) ++ "'");
+    }
+
+    const rect = rectFromVecs(d.getPos(), d.size);
+
+    const fields = std.meta.fields(@TypeOf(selected));
+    const field_names = comptime blk: {
+        var len = 0;
+        for (fields) |field| {
+            len += field.name.len + 1; // +1 for semicolon / null terminator
+        }
+        var names: [len:0]u8 = undefined;
+        var offset = 0;
+        for (fields) |field| {
+            std.mem.copyForwards(u8, names[offset..], field.name);
+            offset += field.name.len + 1;
+            names[offset - 1] = ';';
+        }
+        names[len - 1] = 0;
+        break :blk names;
+    };
+
+    var selected_idx: i32 = @intFromEnum(selected);
+
+    if (d.element == held_element) {
+        _ = rg.guiDropdownBox(rect, &field_names, &selected_idx, edit_mode.*);
+        if (rl.checkCollisionPointRec(rl.getMousePosition(), rect) and rl.isMouseButtonReleased(.left)) {
+            edit_mode.* = !edit_mode.*;
+        }
+    } else if (held_element == null) {
+        _ = rg.guiDropdownBox(rect, &field_names, &selected_idx, edit_mode.*);
+    } else {
+        rg.guiLock();
+        _ = rg.guiDropdownBox(rect, &field_names, &selected_idx, edit_mode.*);
+        rg.guiUnlock();
+    }
+
+    return @enumFromInt(selected_idx);
 }
 
 fn rectFromVecs(pos: Vec2, size: Vec2) Rect {
@@ -312,13 +357,35 @@ const Spinner = struct {
     }
 };
 
+const Dropdown = struct {
+    container: ?*const Container,
+    pos: Vec2,
+    size: Vec2,
+    element: GuiElement,
+
+    pub fn getRect(self: Dropdown) Rect {
+        const pos = self.getPos();
+        return Rect.init(pos.x, pos.y, self.size.x, self.size.y);
+    }
+
+    pub fn getPos(self: Dropdown) Vec2 {
+        if (self.container) |c| {
+            return c.getPos().add(self.pos);
+        } else {
+            return self.pos;
+        }
+    }
+};
+
 pub const SidebarTabs = enum {
     Settings,
     Patterns,
+    GameTypes,
     pub fn getGuiElement(self: SidebarTabs) GuiElement {
         return switch (self) {
             .Settings => .TabSettings,
             .Patterns => .TabPatterns,
+            .GameTypes => .TabGameTypes,
         };
     }
 };
@@ -424,4 +491,11 @@ pub const game_speed_spinner: Spinner = .{
     .size = Vec2.init(game_speed_box.size.x - game_speed_slider.size.x - 30, 20),
     .text = "",
     .element = .GameSpeedSpinner,
+};
+
+pub const game_type_dropdown: Dropdown = .{
+    .container = &sidebar,
+    .pos = Vec2.init(20, 40),
+    .size = Vec2.init(sidebar_width - 40, 40),
+    .element = .GameTypeDropdown,
 };

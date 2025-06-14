@@ -12,13 +12,16 @@ const Rect = rl.Rectangle;
 
 const Gol = @import("GameOfLife.zig");
 const Tile = Gol.Tile;
-const BasicGame = @import("games/StaticArray.zig");
+const StaticArrayGame = @import("games/StaticArray.zig");
+const DynamicArrayGame = @import("games/DynamicArray.zig");
 const HashsetGame = @import("games/Hashset.zig");
 const ui = @import("ui.zig");
 const pattern = @import("pattern.zig");
 const GameThread = @import("GameThread.zig");
 
 var screen_size: Vec2 = .init(800, 500);
+
+const GameType = enum { @"Static Array", @"Dynamic Array", Hashset };
 
 pub fn main() !void {
     rl.initWindow(@intFromFloat(screen_size.x), @intFromFloat(screen_size.y), "Game of Life");
@@ -47,10 +50,13 @@ pub fn main() !void {
     });
     const rng = random.random();
 
-    // var game = BasicGame.init(rng);
-    var game = HashsetGame.init(rng, ally);
-    defer game.deinit();
-    const gol = game.gol();
+    var static_array_game = StaticArrayGame.init(rng);
+    var dynamic_array_game = try DynamicArrayGame.init(rng, ally);
+    defer dynamic_array_game.deinit();
+    var hashset_game = HashsetGame.init(rng, ally);
+    defer hashset_game.deinit();
+
+    var gol = static_array_game.gol();
 
     var clipboard = try pattern.Pattern.init("", &.{}, ally);
     defer clipboard.deinit();
@@ -64,6 +70,9 @@ pub fn main() !void {
     var pat_list_scroll: i32 = 0;
     var pat_list_active: ?usize = null;
     var pat_list_focused: ?usize = null;
+
+    var game_type_selected: GameType = .@"Static Array";
+    var game_type_editing = false;
 
     var held_element: ?ui.GuiElement = null;
     var hovered_element: ui.GuiElement = .Grid;
@@ -262,10 +271,12 @@ pub fn main() !void {
                 hovered_element = switch (b) {
                     .Settings => .TabSettings,
                     .Patterns => .TabPatterns,
+                    .GameTypes => .TabGameTypes,
                 };
             }
             _ = ui.grabGuiElement(&held_element, hovered_element, .TabSettings);
             _ = ui.grabGuiElement(&held_element, hovered_element, .TabPatterns);
+            _ = ui.grabGuiElement(&held_element, hovered_element, .TabGameTypes);
 
             ui.drawContainer(ui.sidebar);
             if (rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect())) hovered_element = .Sidebar;
@@ -322,6 +333,20 @@ pub fn main() !void {
                     ui.drawListView(ui.pattern_list, names_list.items, &pat_list_scroll, &pat_list_active, &pat_list_focused, held_element);
                     if (rl.checkCollisionPointRec(mouse_pos, ui.pattern_list.getRect())) hovered_element = .PatternList;
                     _ = ui.grabGuiElement(&held_element, hovered_element, .PatternList);
+                },
+                .GameTypes => {
+                    const old_game_type = game_type_selected;
+                    game_type_selected = ui.drawDropdown(ui.game_type_dropdown, game_type_selected, &game_type_editing, held_element);
+                    if (rl.checkCollisionPointRec(mouse_pos, ui.game_type_dropdown.getRect())) hovered_element = .GameTypeDropdown;
+                    _ = ui.grabGuiElement(&held_element, hovered_element, .GameTypeDropdown);
+                    if (old_game_type != game_type_selected) {
+                        gol = switch (game_type_selected) {
+                            .@"Static Array" => static_array_game.gol(),
+                            .@"Dynamic Array" => dynamic_array_game.gol(),
+                            .Hashset => hashset_game.gol(),
+                        };
+                        game_thread.message(.{ .change_game = gol });
+                    }
                 },
             }
 

@@ -19,6 +19,7 @@ const Message = union(enum) {
     end_game: void,
     set_tile: SetTileArgs,
     set_tiles: SetTilesArgs,
+    change_game: Gol,
 };
 
 const SetTileArgs = struct { x: isize, y: isize, tile: bool };
@@ -40,7 +41,8 @@ time_idx: u4 = 0,
 
 generation: u64 = 0,
 
-pub fn run(self: *GameThread, game: Gol) !void {
+pub fn run(self: *GameThread, gol: Gol) !void {
+    var game = gol;
     var random = std.Random.DefaultPrng.init(blk: {
         var seed: u64 = undefined;
         try std.posix.getrandom(std.mem.asBytes(&seed));
@@ -92,6 +94,7 @@ pub fn run(self: *GameThread, game: Gol) !void {
                 game.setTiles(args.x, args.y, args.tiles.items);
                 args.tiles.deinit();
             },
+            .change_game => |new_game| game = new_game,
         }
     }
 }
