@@ -50,46 +50,40 @@ pub fn hoverGuiElement(element: anytype) void {
 }
 
 pub fn drawButton(b: Button) bool {
-    const rect = rectFromVecs(b.getPos(), b.size);
-
     if (b.element == held_element) {
-        return rg.guiButton(rect, b.text) != 0;
+        return rg.guiButton(b.getRect(), b.text) != 0;
     } else if (held_element == null) {
-        _ = rg.guiButton(rect, b.text);
+        _ = rg.guiButton(b.getRect(), b.text);
         return false;
     } else {
         rg.guiLock();
-        _ = rg.guiButton(rect, b.text);
+        _ = rg.guiButton(b.getRect(), b.text);
         rg.guiUnlock();
         return false;
     }
 }
 
 pub fn drawCheckbox(c: Checkbox, checked: bool) bool {
-    const rect = rectFromVecs(c.getPos(), c.box_size);
-
     var ch = checked;
     if (c.element == held_element) {
-        _ = rg.guiCheckBox(rect, c.text, &ch);
+        _ = rg.guiCheckBox(c.getRect(), c.text, &ch);
     } else if (held_element == null) {
-        _ = rg.guiCheckBox(rect, c.text, &ch);
+        _ = rg.guiCheckBox(c.getRect(), c.text, &ch);
     } else {
         rg.guiLock();
-        _ = rg.guiCheckBox(rect, c.text, &ch);
+        _ = rg.guiCheckBox(c.getRect(), c.text, &ch);
         rg.guiUnlock();
     }
     return ch;
 }
 
 pub fn drawContainer(c: Container) void {
-    const rect = rectFromVecs(c.getPos(), c.size);
-
     switch (c.type) {
         .Panel => {
-            _ = rg.guiPanel(rect, c.title);
+            _ = rg.guiPanel(c.getRect(), c.title);
         },
         .GroupBox => {
-            _ = rg.guiGroupBox(rect, c.title);
+            _ = rg.guiGroupBox(c.getRect(), c.title);
         },
     }
 }
@@ -99,7 +93,7 @@ pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype) struct { @TypeOf(tab_en
         @compileError("Expected enum type, found '" ++ @typeName(tab_enum) ++ "'");
     }
 
-    var rect = rectFromVecs(tb.getPos(), tb.size);
+    var rect = tb.getRect();
 
     const fields = std.meta.fields(@TypeOf(tab_enum));
 
@@ -128,50 +122,45 @@ pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype) struct { @TypeOf(tab_en
 }
 
 pub fn drawListView(list: List, items: [][*:0]const u8, scroll: *i32, active: *?usize, focused: *?usize) void {
-    const rect = rectFromVecs(list.getPos(), list.size);
     var active_inner: i32 = if (active.*) |a| @intCast(a) else -1;
     var focused_inner: i32 = if (focused.*) |f| @intCast(f) else -1;
 
     if (list.element == held_element or held_element == null) {
-        _ = rg.guiListViewEx(rect, items, scroll, &active_inner, &focused_inner);
+        _ = rg.guiListViewEx(list.getRect(), items, scroll, &active_inner, &focused_inner);
 
         active.* = if (active_inner != -1) @intCast(active_inner) else null;
         focused.* = if (focused_inner != -1) @intCast(focused_inner) else null;
     } else {
         rg.guiLock();
-        _ = rg.guiListViewEx(rect, items, scroll, &active_inner, &focused_inner);
+        _ = rg.guiListViewEx(list.getRect(), items, scroll, &active_inner, &focused_inner);
         rg.guiUnlock();
     }
 }
 
 pub fn drawSlider(s: Slider, val: *f32, min: f32, max: f32) bool {
-    const rect = rectFromVecs(s.getPos(), s.size);
-
     if (s.element == held_element) {
-        return rg.guiSlider(rect, s.text_left, s.text_right, val, min, max) != 0;
+        return rg.guiSlider(s.getRect(), s.text_left, s.text_right, val, min, max) != 0;
     } else if (held_element == null) {
-        _ = rg.guiSlider(rect, s.text_left, s.text_right, val, min, max);
+        _ = rg.guiSlider(s.getRect(), s.text_left, s.text_right, val, min, max);
         return false;
     } else {
         rg.guiLock();
-        _ = rg.guiSlider(rect, s.text_left, s.text_right, val, min, max);
+        _ = rg.guiSlider(s.getRect(), s.text_left, s.text_right, val, min, max);
         rg.guiUnlock();
         return false;
     }
 }
 
 pub fn drawSpinner(sb: Spinner, val: *i32, min: i32, max: i32, editing: bool) bool {
-    const rect = rectFromVecs(sb.getPos(), sb.size);
-
     if (sb.element == held_element) {
-        return rg.guiSpinner(rect, sb.text, val, min, max, editing) != 0;
+        return rg.guiSpinner(sb.getRect(), sb.text, val, min, max, editing) != 0;
     } else if (held_element == null) {
         // giving it val for min and max both prevents it form editing the value and from drawing
         // the wrong, edited value for one frame
-        return rg.guiSpinner(rect, sb.text, val, val.*, val.*, editing) != 0;
+        return rg.guiSpinner(sb.getRect(), sb.text, val, val.*, val.*, editing) != 0;
     } else {
         rg.guiLock();
-        _ = rg.guiSpinner(rect, sb.text, val, min, max, editing);
+        _ = rg.guiSpinner(sb.getRect(), sb.text, val, min, max, editing);
         rg.guiUnlock();
         return editing;
     }
@@ -181,8 +170,6 @@ pub fn drawDropdown(d: Dropdown, selected: anytype, edit_mode: *bool) @TypeOf(se
     if (@typeInfo(@TypeOf(selected)) != .@"enum") {
         @compileError("Expected enum type, found '" ++ @typeName(selected) ++ "'");
     }
-
-    const rect = rectFromVecs(d.getPos(), d.size);
 
     const fields = std.meta.fields(@TypeOf(selected));
     const field_names = comptime blk: {
@@ -204,23 +191,19 @@ pub fn drawDropdown(d: Dropdown, selected: anytype, edit_mode: *bool) @TypeOf(se
     var selected_idx: i32 = @intFromEnum(selected);
 
     if (d.element == held_element) {
-        _ = rg.guiDropdownBox(rect, &field_names, &selected_idx, edit_mode.*);
-        if (rl.checkCollisionPointRec(rl.getMousePosition(), rect) and rl.isMouseButtonReleased(.left)) {
+        _ = rg.guiDropdownBox(d.getRect(), &field_names, &selected_idx, edit_mode.*);
+        if (rl.checkCollisionPointRec(rl.getMousePosition(), d.getRect()) and rl.isMouseButtonReleased(.left)) {
             edit_mode.* = !edit_mode.*;
         }
     } else if (held_element == null) {
-        _ = rg.guiDropdownBox(rect, &field_names, &selected_idx, edit_mode.*);
+        _ = rg.guiDropdownBox(d.getRect(), &field_names, &selected_idx, edit_mode.*);
     } else {
         rg.guiLock();
-        _ = rg.guiDropdownBox(rect, &field_names, &selected_idx, edit_mode.*);
+        _ = rg.guiDropdownBox(d.getRect(), &field_names, &selected_idx, edit_mode.*);
         rg.guiUnlock();
     }
 
     return @enumFromInt(selected_idx);
-}
-
-fn rectFromVecs(pos: Vec2, size: Vec2) Rect {
-    return .init(pos.x, pos.y, size.x, size.y);
 }
 
 pub fn updateSidebar(screen_size: Vec2) void {
@@ -333,6 +316,11 @@ const TabButtons = struct {
     pos: Vec2,
     size: Vec2,
     offset: Vec2,
+
+    pub fn getRect(self: TabButtons) Rect {
+        const pos = self.getPos();
+        return Rect.init(pos.x, pos.y, self.size.x, self.size.y);
+    }
 
     pub fn getPos(self: TabButtons) Vec2 {
         if (self.container) |c| {
