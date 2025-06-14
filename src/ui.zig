@@ -65,20 +65,6 @@ pub fn drawButton(b: Button) bool {
     }
 }
 
-pub fn drawCheckbox(c: Checkbox, checked: bool) bool {
-    var ch = checked;
-    if (c.element == held_element) {
-        _ = rg.guiCheckBox(c.getRect(), c.text, &ch);
-    } else if (held_element == null) {
-        _ = rg.guiCheckBox(c.getRect(), c.text, &ch);
-    } else {
-        rg.guiLock();
-        _ = rg.guiCheckBox(c.getRect(), c.text, &ch);
-        rg.guiUnlock();
-    }
-    return ch;
-}
-
 pub fn drawContainer(c: Container) void {
     switch (c.type) {
         .Panel => {
@@ -252,31 +238,6 @@ const Button = struct {
     }
 
     pub fn getElement(self: Button) GuiElement {
-        return self.element;
-    }
-};
-
-const Checkbox = struct {
-    container: ?*const Container,
-    pos: Vec2,
-    box_size: Vec2,
-    text: [:0]const u8,
-    element: GuiElement,
-
-    pub fn getRect(self: Checkbox) Rect {
-        const pos = self.getPos();
-        return Rect.init(pos.x, pos.y, self.box_size.x, self.box_size.y);
-    }
-
-    pub fn getPos(self: Checkbox) Vec2 {
-        if (self.container) |c| {
-            return c.getPos().add(self.pos);
-        } else {
-            return self.pos;
-        }
-    }
-
-    pub fn getElement(self: Checkbox) GuiElement {
         return self.element;
     }
 };
@@ -489,14 +450,6 @@ pub const step_button: Button = .{
     .size = Vec2.init(controls.size.x - 40, 40),
     .text = "Step",
     .element = .StepButton,
-};
-
-pub const edit_mode_checkbox: Checkbox = .{
-    .container = null,
-    .pos = Vec2.init(20, 20),
-    .box_size = Vec2.init(15, 15),
-    .text = "Editing",
-    .element = .EditMode,
 };
 
 pub const pattern_list: List = .{
