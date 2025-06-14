@@ -74,8 +74,6 @@ pub fn main() !void {
     var game_type_selected: GameType = .@"Static Array";
     var game_type_editing = false;
 
-    var held_element: ?ui.GuiElement = null;
-    var hovered_element: ui.GuiElement = .Grid;
     var editing_game_speed = false;
 
     var selection: ?Rect = null;
@@ -107,8 +105,8 @@ pub fn main() !void {
         };
         const scroll = rl.getMouseWheelMove();
 
-        if (!rl.isKeyDown(.left_control)) {
-            if (ui.grabGuiElement(&held_element, hovered_element, .Grid)) {
+        if (ui.canGrab(.Grid)) {
+            if (!rl.isKeyDown(.left_control)) {
                 // Move and zoom the camera
                 // ------------------------
                 if (rl.isMouseButtonDown(.left)) {
@@ -145,14 +143,13 @@ pub fn main() !void {
                     selection = Rect.init(pointer_pos.x, pointer_pos.y, 0, 0);
                     held_corner = .BR;
                 }
-            }
-        } else blk: {
-            // Edit a tile
-            // -----------
-            if (ui.grabGuiElement(&held_element, hovered_element, .Grid)) {
+            } else blk: {
+                // Edit a tile
+                // -----------
                 const tile = if (rl.isMouseButtonDown(.left)) true else if (rl.isMouseButtonDown(.right)) false else break :blk;
                 game_thread.message(.{ .set_tile = .{ .x = pointer_pos_int.x, .y = pointer_pos_int.y, .tile = tile } });
             }
+            ui.grabGuiElement(ui.grid);
         }
 
         // Manipulate the held pattern
@@ -250,7 +247,7 @@ pub fn main() !void {
                 if (selection) |s| {
                     rl.drawRectangleLinesEx(s, 2 / camera.zoom, .sky_blue);
                     if (if (held_corner) |c| c else grabCorner(pointer_pos, s, camera)) |c| blk: {
-                        if (held_element != .Grid and (held_element != null or hovered_element != .Grid)) break :blk;
+                        if (ui.held_element != .Grid and (ui.held_element != null or ui.hovered_element != .Grid)) break :blk;
                         const center = getCornerCoords(s, c);
                         const color: Color = switch (c) {
                             .TL => .maroon,
@@ -265,80 +262,81 @@ pub fn main() !void {
             }
             camera.end();
 
-            hovered_element = .Grid; // Assume we are hovering over the grid until proven otherwise
-            sidebar_tab, const hovered_tab_button = ui.drawTabButtons(ui.sidebar_tab_buttons, sidebar_tab, held_element);
+            ui.hovered_element = .Grid; // Assume we are hovering over the grid until proven otherwise
+            sidebar_tab, const hovered_tab_button = ui.drawTabButtons(ui.sidebar_tab_buttons, sidebar_tab);
             if (hovered_tab_button) |b| {
-                hovered_element = switch (b) {
+                ui.hovered_element = switch (b) {
                     .Settings => .TabSettings,
                     .Patterns => .TabPatterns,
                     .GameTypes => .TabGameTypes,
                 };
             }
-            _ = ui.grabGuiElement(&held_element, hovered_element, .TabSettings);
-            _ = ui.grabGuiElement(&held_element, hovered_element, .TabPatterns);
-            _ = ui.grabGuiElement(&held_element, hovered_element, .TabGameTypes);
+            // FIXME: no way to implement getElement() on the tab buttons yet
+            // ui.grabGuiElement(.TabSettings);
+            // ui.grabGuiElement(.TabPatterns);
+            // ui.grabGuiElement(.TabGameTypes);
 
             ui.drawContainer(ui.sidebar);
-            if (rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect())) hovered_element = .Sidebar;
+            if (rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect())) ui.hovered_element = .Sidebar;
 
             switch (sidebar_tab) {
                 .Settings => {
                     ui.drawContainer(ui.controls);
 
-                    if (ui.drawButton(ui.clear_button, held_element)) game_thread.message(.{ .clear = {} });
-                    if (rl.checkCollisionPointRec(mouse_pos, ui.clear_button.getRect())) hovered_element = .ClearButton;
-                    _ = ui.grabGuiElement(&held_element, hovered_element, .ClearButton);
+                    if (ui.drawButton(ui.clear_button)) game_thread.message(.{ .clear = {} });
+                    ui.hoverGuiElement(ui.clear_button);
+                    ui.grabGuiElement(ui.clear_button);
 
-                    if (ui.drawButton(ui.randomize_button, held_element)) game_thread.message(.{ .randomize = {} });
-                    if (rl.checkCollisionPointRec(mouse_pos, ui.randomize_button.getRect())) hovered_element = .RandomizeButton;
-                    _ = ui.grabGuiElement(&held_element, hovered_element, .RandomizeButton);
+                    if (ui.drawButton(ui.randomize_button)) game_thread.message(.{ .randomize = {} });
+                    ui.hoverGuiElement(ui.randomize_button);
+                    ui.grabGuiElement(ui.randomize_button);
 
                     if (game_thread.game_paused) {
-                        if (ui.drawButton(ui.unpause_button, held_element)) game_thread.message(.{ .unpause = {} });
-                        if (rl.checkCollisionPointRec(mouse_pos, ui.unpause_button.getRect())) hovered_element = .PauseButton;
-                        _ = ui.grabGuiElement(&held_element, hovered_element, .PauseButton);
+                        if (ui.drawButton(ui.unpause_button)) game_thread.message(.{ .unpause = {} });
+                        ui.hoverGuiElement(ui.pause_button);
+                        ui.grabGuiElement(ui.pause_button);
 
-                        if (ui.drawButton(ui.step_button, held_element)) game_thread.message(.{ .step = {} });
-                        if (rl.checkCollisionPointRec(mouse_pos, ui.step_button.getRect())) hovered_element = .StepButton;
-                        _ = ui.grabGuiElement(&held_element, hovered_element, .StepButton);
+                        if (ui.drawButton(ui.step_button)) game_thread.message(.{ .step = {} });
+                        ui.hoverGuiElement(ui.step_button);
+                        ui.grabGuiElement(ui.step_button);
                     } else {
-                        if (ui.drawButton(ui.pause_button, held_element)) game_thread.message(.{ .pause = {} });
-                        if (rl.checkCollisionPointRec(mouse_pos, ui.pause_button.getRect())) hovered_element = .PauseButton;
-                        _ = ui.grabGuiElement(&held_element, hovered_element, .PauseButton);
+                        if (ui.drawButton(ui.pause_button)) game_thread.message(.{ .pause = {} });
+                        ui.hoverGuiElement(ui.pause_button);
+                        ui.grabGuiElement(ui.pause_button);
 
                         rg.guiSetState(@intFromEnum(rg.GuiState.state_disabled));
-                        if (ui.drawButton(ui.step_button, held_element)) game_thread.message(.{ .step = {} });
-                        if (rl.checkCollisionPointRec(mouse_pos, ui.step_button.getRect())) hovered_element = .StepButton;
-                        _ = ui.grabGuiElement(&held_element, hovered_element, .StepButton);
+                        if (ui.drawButton(ui.step_button)) game_thread.message(.{ .step = {} });
+                        ui.hoverGuiElement(ui.step_button);
+                        ui.grabGuiElement(ui.step_button);
                         rg.guiSetState(@intFromEnum(rg.GuiState.state_normal));
                     }
 
                     ui.drawContainer(ui.game_speed_box);
                     var game_speed_f: f32 = @floatFromInt(@max(game_speed, 1)); // @max is needed here so the spinner later on can be zero
-                    if (ui.drawSlider(ui.game_speed_slider, &game_speed_f, 1, 240, held_element)) {
+                    if (ui.drawSlider(ui.game_speed_slider, &game_speed_f, 1, 240)) {
                         game_speed = @intFromFloat(game_speed_f);
                     }
-                    if (rl.checkCollisionPointRec(mouse_pos, ui.game_speed_slider.getRect())) hovered_element = .GameSpeedSlider;
-                    _ = ui.grabGuiElement(&held_element, hovered_element, .GameSpeedSlider);
+                    ui.hoverGuiElement(ui.game_speed_slider);
+                    ui.grabGuiElement(ui.game_speed_slider);
 
-                    if (ui.drawSpinner(ui.game_speed_spinner, &game_speed, 0, 240, editing_game_speed, held_element)) {
+                    if (ui.drawSpinner(ui.game_speed_spinner, &game_speed, 0, 240, editing_game_speed)) {
                         editing_game_speed = !editing_game_speed;
                     }
-                    if (rl.checkCollisionPointRec(mouse_pos, ui.game_speed_spinner.getRect())) hovered_element = .GameSpeedSpinner;
-                    _ = ui.grabGuiElement(&held_element, hovered_element, .GameSpeedSpinner);
+                    ui.hoverGuiElement(ui.game_speed_spinner);
+                    ui.grabGuiElement(ui.game_speed_spinner);
                 },
                 .Patterns => blk: {
                     const names_list = patterns.getNames(ally) catch break :blk;
                     defer names_list.deinit();
-                    ui.drawListView(ui.pattern_list, names_list.items, &pat_list_scroll, &pat_list_active, &pat_list_focused, held_element);
-                    if (rl.checkCollisionPointRec(mouse_pos, ui.pattern_list.getRect())) hovered_element = .PatternList;
-                    _ = ui.grabGuiElement(&held_element, hovered_element, .PatternList);
+                    ui.drawListView(ui.pattern_list, names_list.items, &pat_list_scroll, &pat_list_active, &pat_list_focused);
+                    ui.hoverGuiElement(ui.pattern_list);
+                    ui.grabGuiElement(ui.pattern_list);
                 },
                 .GameTypes => {
                     const old_game_type = game_type_selected;
-                    game_type_selected = ui.drawDropdown(ui.game_type_dropdown, game_type_selected, &game_type_editing, held_element);
-                    if (rl.checkCollisionPointRec(mouse_pos, ui.game_type_dropdown.getRect())) hovered_element = .GameTypeDropdown;
-                    _ = ui.grabGuiElement(&held_element, hovered_element, .GameTypeDropdown);
+                    game_type_selected = ui.drawDropdown(ui.game_type_dropdown, game_type_selected, &game_type_editing);
+                    ui.hoverGuiElement(ui.game_type_dropdown);
+                    ui.grabGuiElement(ui.game_type_dropdown);
                     if (old_game_type != game_type_selected) {
                         gol = switch (game_type_selected) {
                             .@"Static Array" => static_array_game.gol(),
@@ -387,8 +385,8 @@ pub fn main() !void {
                 rl.drawText("D - Deselect    ESC - Clear clipboard & pattern    SPACE - Pause", 10, @as(i32, @intFromFloat(screen_size.y)) - 10 - 17, 17, .dark_gray);
             }
 
-            if (rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect()) and hovered_element == .Grid) hovered_element = .Sidebar;
-            _ = ui.grabGuiElement(&held_element, hovered_element, .Sidebar);
+            ui.hoverGuiElement(ui.sidebar);
+            ui.grabGuiElement(ui.sidebar);
         }
         rl.endDrawing();
     }

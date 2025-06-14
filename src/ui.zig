@@ -28,16 +28,28 @@ pub const GuiElement = enum {
     GameTypeDropdown,
 };
 
-pub fn grabGuiElement(held_element: *?GuiElement, hovered_element: GuiElement, element: GuiElement) bool {
+pub var held_element: ?GuiElement = null;
+pub var hovered_element: GuiElement = .Grid;
+
+pub fn grabGuiElement(element: anytype) void {
     const holding_mouse = rl.isMouseButtonDown(.left) or rl.isMouseButtonDown(.right);
-    if (held_element.* == element or (held_element.* == null and hovered_element == element)) {
-        held_element.* = if (holding_mouse) element else null;
-        return true;
+    if (canGrab(element.getElement())) {
+        held_element = if (holding_mouse) element.getElement() else null;
     }
-    return false;
 }
 
-pub fn drawButton(b: Button, held_element: ?GuiElement) bool {
+pub fn canGrab(element: GuiElement) bool {
+    return held_element == element or (held_element == null and hovered_element == element);
+}
+
+pub fn hoverGuiElement(element: anytype) void {
+    const mouse_pos = rl.getMousePosition();
+    if (rl.checkCollisionPointRec(mouse_pos, element.getRect())) {
+        hovered_element = element.getElement();
+    }
+}
+
+pub fn drawButton(b: Button) bool {
     const rect = rectFromVecs(b.getPos(), b.size);
 
     if (b.element == held_element) {
@@ -53,7 +65,7 @@ pub fn drawButton(b: Button, held_element: ?GuiElement) bool {
     }
 }
 
-pub fn drawCheckbox(c: Checkbox, checked: bool, held_element: ?GuiElement) bool {
+pub fn drawCheckbox(c: Checkbox, checked: bool) bool {
     const rect = rectFromVecs(c.getPos(), c.box_size);
 
     var ch = checked;
@@ -82,7 +94,7 @@ pub fn drawContainer(c: Container) void {
     }
 }
 
-pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype, held_element: ?GuiElement) struct { @TypeOf(tab_enum), ?@TypeOf(tab_enum) } {
+pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype) struct { @TypeOf(tab_enum), ?@TypeOf(tab_enum) } {
     if (@typeInfo(@TypeOf(tab_enum)) != .@"enum") {
         @compileError("Expected enum type, found '" ++ @typeName(tab_enum) ++ "'");
     }
@@ -115,7 +127,7 @@ pub fn drawTabButtons(tb: TabButtons, tab_enum: anytype, held_element: ?GuiEleme
     return .{ retval, hovering };
 }
 
-pub fn drawListView(list: List, items: [][*:0]const u8, scroll: *i32, active: *?usize, focused: *?usize, held_element: ?GuiElement) void {
+pub fn drawListView(list: List, items: [][*:0]const u8, scroll: *i32, active: *?usize, focused: *?usize) void {
     const rect = rectFromVecs(list.getPos(), list.size);
     var active_inner: i32 = if (active.*) |a| @intCast(a) else -1;
     var focused_inner: i32 = if (focused.*) |f| @intCast(f) else -1;
@@ -132,7 +144,7 @@ pub fn drawListView(list: List, items: [][*:0]const u8, scroll: *i32, active: *?
     }
 }
 
-pub fn drawSlider(s: Slider, val: *f32, min: f32, max: f32, held_element: ?GuiElement) bool {
+pub fn drawSlider(s: Slider, val: *f32, min: f32, max: f32) bool {
     const rect = rectFromVecs(s.getPos(), s.size);
 
     if (s.element == held_element) {
@@ -148,7 +160,7 @@ pub fn drawSlider(s: Slider, val: *f32, min: f32, max: f32, held_element: ?GuiEl
     }
 }
 
-pub fn drawSpinner(sb: Spinner, val: *i32, min: i32, max: i32, editing: bool, held_element: ?GuiElement) bool {
+pub fn drawSpinner(sb: Spinner, val: *i32, min: i32, max: i32, editing: bool) bool {
     const rect = rectFromVecs(sb.getPos(), sb.size);
 
     if (sb.element == held_element) {
@@ -165,7 +177,7 @@ pub fn drawSpinner(sb: Spinner, val: *i32, min: i32, max: i32, editing: bool, he
     }
 }
 
-pub fn drawDropdown(d: Dropdown, selected: anytype, edit_mode: *bool, held_element: ?GuiElement) @TypeOf(selected) {
+pub fn drawDropdown(d: Dropdown, selected: anytype, edit_mode: *bool) @TypeOf(selected) {
     if (@typeInfo(@TypeOf(selected)) != .@"enum") {
         @compileError("Expected enum type, found '" ++ @typeName(selected) ++ "'");
     }
@@ -222,6 +234,7 @@ const Container = struct {
     size: Vec2,
     title: [:0]const u8,
     type: enum { Panel, GroupBox },
+    element: GuiElement,
 
     pub fn getRect(self: Container) Rect {
         const pos = self.getPos();
@@ -234,6 +247,10 @@ const Container = struct {
         } else {
             return self.pos;
         }
+    }
+
+    pub fn getElement(self: Container) GuiElement {
+        return self.element;
     }
 };
 
@@ -256,6 +273,10 @@ const Button = struct {
             return self.pos;
         }
     }
+
+    pub fn getElement(self: Button) GuiElement {
+        return self.element;
+    }
 };
 
 const Checkbox = struct {
@@ -277,6 +298,10 @@ const Checkbox = struct {
             return self.pos;
         }
     }
+
+    pub fn getElement(self: Checkbox) GuiElement {
+        return self.element;
+    }
 };
 
 const List = struct {
@@ -296,6 +321,10 @@ const List = struct {
         } else {
             return self.pos;
         }
+    }
+
+    pub fn getElement(self: List) GuiElement {
+        return self.element;
     }
 };
 
@@ -334,6 +363,10 @@ const Slider = struct {
             return self.pos;
         }
     }
+
+    pub fn getElement(self: Slider) GuiElement {
+        return self.element;
+    }
 };
 
 const Spinner = struct {
@@ -355,6 +388,10 @@ const Spinner = struct {
             return self.pos;
         }
     }
+
+    pub fn getElement(self: Spinner) GuiElement {
+        return self.element;
+    }
 };
 
 const Dropdown = struct {
@@ -375,6 +412,10 @@ const Dropdown = struct {
             return self.pos;
         }
     }
+
+    pub fn getElement(self: Dropdown) GuiElement {
+        return self.element;
+    }
 };
 
 pub const SidebarTabs = enum {
@@ -390,12 +431,22 @@ pub const SidebarTabs = enum {
     }
 };
 
+// dummy struct for consistency
+const Grid = struct {
+    pub fn getElement(_: Grid) GuiElement {
+        return .Grid;
+    }
+};
+
+pub const grid: Grid = .{};
+
 pub var sidebar: Container = .{
     .container = null,
     .pos = Vec2.init(0, 0),
     .size = Vec2.init(sidebar_width, 0),
     .title = "Options",
     .type = .Panel,
+    .element = .Sidebar,
 };
 
 pub const controls: Container = .{
@@ -404,6 +455,7 @@ pub const controls: Container = .{
     .size = Vec2.init(sidebar_width - 40, 260),
     .title = "Game controls",
     .type = .GroupBox,
+    .element = .Sidebar,
 };
 
 pub const game_speed_box: Container = .{
@@ -412,6 +464,7 @@ pub const game_speed_box: Container = .{
     .size = Vec2.init(sidebar_width - 40, 40),
     .title = "Game speed",
     .type = .GroupBox,
+    .element = .Sidebar,
 };
 
 pub const clear_button: Button = .{
