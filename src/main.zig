@@ -67,23 +67,12 @@ pub fn main() !void {
     var debug_menu: bool = false;
     var help_menu: bool = false;
 
-    var pat_list_scroll: i32 = 0;
-    var pat_list_active: ?usize = null;
-    var pat_list_focused: ?usize = null;
-
-    var game_type_selected: GameType = .@"Static Array";
-    var game_type_editing = false;
-
-    var editing_game_speed = false;
-
     var selection: ?Rect = null;
     var held_corner: ?Corner = null;
 
     ui.updateSidebar(screen_size);
 
     var game_speed: i32 = 60;
-
-    var sidebar_tab: ui.SidebarTabs = .Settings;
 
     var game_thread: GameThread = .{};
     const thread = try Thread.spawn(.{}, GameThread.run, .{ &game_thread, gol });
@@ -171,7 +160,7 @@ pub fn main() !void {
                 clipboard.orientation = .{};
             }
         }
-        const pat = if (pat_list_active) |idx| patterns.getPatternRef(idx) else &clipboard;
+        const pat = if (ui.pattern_list.data.active) |idx| patterns.getPatternRef(idx) else &clipboard;
         if (rl.isKeyPressed(.p)) blk: {
             const tiles = pat.getTiles(ally) catch break :blk;
             game_thread.message(.{ .set_tiles = .{ .x = pointer_pos_int.x, .y = pointer_pos_int.y, .tiles = tiles } });
@@ -201,7 +190,7 @@ pub fn main() !void {
 
         if (rl.isKeyPressed(.escape)) {
             clipboard.setTiles(&.{}) catch {};
-            pat_list_active = null;
+            ui.pattern_list.data.active = null;
         }
 
         if (rl.isKeyPressed(.space)) {
@@ -263,7 +252,7 @@ pub fn main() !void {
             camera.end();
 
             ui.hovered_element = .Grid; // Assume we are hovering over the grid until proven otherwise
-            sidebar_tab, const hovered_tab_button = ui.drawTabButtons(ui.sidebar_tab_buttons, sidebar_tab);
+            const hovered_tab_button = ui.drawTabButtons(ui.sidebar_tab_buttons);
             if (hovered_tab_button) |b| {
                 ui.hovered_element = switch (b) {
                     .Settings => .TabSettings,
@@ -279,7 +268,7 @@ pub fn main() !void {
             ui.drawContainer(ui.sidebar);
             if (rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect())) ui.hovered_element = .Sidebar;
 
-            switch (sidebar_tab) {
+            switch (ui.sidebar_tab) {
                 .Settings => {
                     ui.drawContainer(ui.controls);
 
@@ -312,39 +301,34 @@ pub fn main() !void {
                     }
 
                     ui.drawContainer(ui.game_speed_box);
-                    var game_speed_f: f32 = @floatFromInt(@max(game_speed, 1)); // @max is needed here so the spinner later on can be zero
-                    if (ui.drawSlider(ui.game_speed_slider, &game_speed_f, 1, 240)) {
-                        game_speed = @intFromFloat(game_speed_f);
+                    if (ui.drawSlider(ui.game_speed_slider)) {
+                        game_speed = @intFromFloat(ui.game_speed_slider.data.value);
                     }
                     ui.hoverGuiElement(ui.game_speed_slider);
                     ui.grabGuiElement(ui.game_speed_slider);
 
-                    if (ui.drawSpinner(ui.game_speed_spinner, &game_speed, 0, 240, editing_game_speed)) {
-                        editing_game_speed = !editing_game_speed;
-                    }
+                    ui.drawSpinner(ui.game_speed_spinner);
                     ui.hoverGuiElement(ui.game_speed_spinner);
                     ui.grabGuiElement(ui.game_speed_spinner);
                 },
                 .Patterns => blk: {
                     const names_list = patterns.getNames(ally) catch break :blk;
                     defer names_list.deinit();
-                    ui.drawListView(ui.pattern_list, names_list.items, &pat_list_scroll, &pat_list_active, &pat_list_focused);
+                    ui.drawListView(ui.pattern_list, names_list.items);
                     ui.hoverGuiElement(ui.pattern_list);
                     ui.grabGuiElement(ui.pattern_list);
                 },
                 .GameTypes => {
-                    const old_game_type = game_type_selected;
-                    game_type_selected = ui.drawDropdown(ui.game_type_dropdown, game_type_selected, &game_type_editing);
-                    ui.hoverGuiElement(ui.game_type_dropdown);
-                    ui.grabGuiElement(ui.game_type_dropdown);
-                    if (old_game_type != game_type_selected) {
-                        gol = switch (game_type_selected) {
+                    if (ui.drawDropdown(ui.game_type_dropdown)) {
+                        gol = switch (ui.game_type_dropdown.getSelected()) {
                             .@"Static Array" => static_array_game.gol(),
                             .@"Dynamic Array" => dynamic_array_game.gol(),
                             .Hashset => hashset_game.gol(),
                         };
                         game_thread.message(.{ .change_game = gol });
                     }
+                    ui.hoverGuiElement(ui.game_type_dropdown);
+                    ui.grabGuiElement(ui.game_type_dropdown);
                 },
             }
 

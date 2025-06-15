@@ -32,6 +32,7 @@ pub const GuiElement = enum {
 
 pub var held_element: ?GuiElement = null;
 pub var hovered_element: GuiElement = .Grid;
+pub var sidebar_tab: SidebarTabs = .Settings;
 
 pub fn grabGuiElement(element: anytype) void {
     const holding_mouse = rl.isMouseButtonDown(.left) or rl.isMouseButtonDown(.right);
@@ -76,17 +77,16 @@ pub fn drawContainer(c: Container) void {
     }
 }
 
-pub fn drawTabButtons(tb: TabButtons, current_tab: tb.tabs) struct { tb.tabs, ?tb.tabs } {
+pub fn drawTabButtons(tb: TabButtons) ?tb.tabs {
     var rect = tb.getRect();
 
     const fields = std.meta.fields(tb.tabs);
 
-    var retval = current_tab;
     var hovering: ?tb.tabs = null;
     inline for (fields) |field| {
         if (@as(tb.tabs, @enumFromInt(field.value)).getGuiElement() == held_element) {
             if (rg.guiButton(rect, field.name) != 0) {
-                retval = @enumFromInt(field.value);
+                sidebar_tab = @enumFromInt(field.value);
             }
         } else if (held_element == null) {
             _ = rg.guiButton(rect, field.name);
@@ -102,55 +102,54 @@ pub fn drawTabButtons(tb: TabButtons, current_tab: tb.tabs) struct { tb.tabs, ?t
         rect.x += tb.offset.x;
         rect.y += tb.offset.y;
     }
-    return .{ retval, hovering };
+    return hovering;
 }
 
-pub fn drawListView(list: List, items: [][*:0]const u8, scroll: *i32, active: *?usize, focused: *?usize) void {
-    var active_inner: i32 = if (active.*) |a| @intCast(a) else -1;
-    var focused_inner: i32 = if (focused.*) |f| @intCast(f) else -1;
+pub fn drawListView(list: List, items: [][*:0]const u8) void {
+    var active_inner: i32 = if (list.data.active) |a| @intCast(a) else -1;
+    var focused_inner: i32 = if (list.data.focused) |f| @intCast(f) else -1;
 
     if (list.element == held_element or held_element == null) {
-        _ = rg.guiListViewEx(list.getRect(), items, scroll, &active_inner, &focused_inner);
+        _ = rg.guiListViewEx(list.getRect(), items, &list.data.scroll, &active_inner, &focused_inner);
 
-        active.* = if (active_inner != -1) @intCast(active_inner) else null;
-        focused.* = if (focused_inner != -1) @intCast(focused_inner) else null;
+        list.data.active = if (active_inner != -1) @intCast(active_inner) else null;
+        list.data.focused = if (focused_inner != -1) @intCast(focused_inner) else null;
     } else {
         rg.guiLock();
-        _ = rg.guiListViewEx(list.getRect(), items, scroll, &active_inner, &focused_inner);
+        _ = rg.guiListViewEx(list.getRect(), items, &list.data.scroll, &active_inner, &focused_inner);
         rg.guiUnlock();
     }
 }
 
-pub fn drawSlider(s: Slider, val: *f32, min: f32, max: f32) bool {
+pub fn drawSlider(s: Slider) bool {
     if (s.element == held_element) {
-        return rg.guiSlider(s.getRect(), s.text_left, s.text_right, val, min, max) != 0;
+        return rg.guiSlider(s.getRect(), s.text_left, s.text_right, &s.data.value, s.data.min, s.data.max) != 0;
     } else if (held_element == null) {
-        _ = rg.guiSlider(s.getRect(), s.text_left, s.text_right, val, min, max);
+        _ = rg.guiSlider(s.getRect(), s.text_left, s.text_right, &s.data.value, s.data.min, s.data.max);
         return false;
     } else {
         rg.guiLock();
-        _ = rg.guiSlider(s.getRect(), s.text_left, s.text_right, val, min, max);
+        _ = rg.guiSlider(s.getRect(), s.text_left, s.text_right, &s.data.value, s.data.min, s.data.max);
         rg.guiUnlock();
         return false;
     }
 }
 
-pub fn drawSpinner(sb: Spinner, val: *i32, min: i32, max: i32, editing: bool) bool {
+pub fn drawSpinner(sb: Spinner) void {
     if (sb.element == held_element) {
-        return rg.guiSpinner(sb.getRect(), sb.text, val, min, max, editing) != 0;
+        sb.data.editing = rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.min, sb.data.max, sb.data.editing) != 0;
     } else if (held_element == null) {
         // giving it val for min and max both prevents it form editing the value and from drawing
         // the wrong, edited value for one frame
-        return rg.guiSpinner(sb.getRect(), sb.text, val, val.*, val.*, editing) != 0;
+        sb.data.editing = rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.value, sb.data.value, sb.data.editing) != 0;
     } else {
         rg.guiLock();
-        _ = rg.guiSpinner(sb.getRect(), sb.text, val, min, max, editing);
+        _ = rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.min, sb.data.max, sb.data.editing);
         rg.guiUnlock();
-        return editing;
     }
 }
 
-pub fn drawDropdown(d: Dropdown, selected: d.contents, edit_mode: *bool) d.contents {
+pub fn drawDropdown(d: Dropdown) bool {
     const fields = std.meta.fields(d.contents);
     const field_names = comptime blk: {
         var len = 0;
@@ -168,22 +167,26 @@ pub fn drawDropdown(d: Dropdown, selected: d.contents, edit_mode: *bool) d.conte
         break :blk names;
     };
 
-    var selected_idx: i32 = @intFromEnum(selected);
+    var selected_idx: i32 = @intCast(d.data.selected);
 
     if (d.element == held_element) {
-        _ = rg.guiDropdownBox(d.getRect(), &field_names, &selected_idx, edit_mode.*);
+        _ = rg.guiDropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing);
         if (rl.checkCollisionPointRec(rl.getMousePosition(), d.getRect()) and rl.isMouseButtonReleased(.left)) {
-            edit_mode.* = !edit_mode.*;
+            d.data.editing = !d.data.editing;
         }
     } else if (held_element == null) {
-        _ = rg.guiDropdownBox(d.getRect(), &field_names, &selected_idx, edit_mode.*);
+        _ = rg.guiDropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing);
     } else {
         rg.guiLock();
-        _ = rg.guiDropdownBox(d.getRect(), &field_names, &selected_idx, edit_mode.*);
+        _ = rg.guiDropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing);
         rg.guiUnlock();
     }
 
-    return @enumFromInt(selected_idx);
+    if (selected_idx != d.data.selected) {
+        d.data.selected = @intCast(selected_idx);
+        return true;
+    }
+    return false;
 }
 
 pub fn updateSidebar(screen_size: Vec2) void {
@@ -246,6 +249,7 @@ const List = struct {
     container: ?*const Container,
     pos: Vec2,
     size: Vec2,
+    data: *ListData,
     element: GuiElement,
 
     pub fn getRect(self: List) Rect {
@@ -264,6 +268,12 @@ const List = struct {
     pub fn getElement(self: List) GuiElement {
         return self.element;
     }
+};
+
+const ListData = struct {
+    scroll: i32 = 0,
+    active: ?usize = null,
+    focused: ?usize = null,
 };
 
 const TabButtons = struct {
@@ -293,6 +303,7 @@ const Slider = struct {
     size: Vec2,
     text_left: [:0]const u8,
     text_right: [:0]const u8,
+    data: *SliderData,
     element: GuiElement,
 
     pub fn getRect(self: Slider) Rect {
@@ -313,11 +324,18 @@ const Slider = struct {
     }
 };
 
+const SliderData = struct {
+    min: f32,
+    max: f32,
+    value: f32,
+};
+
 const Spinner = struct {
     container: ?*const Container,
     pos: Vec2,
     size: Vec2,
     text: [:0]const u8,
+    data: *SpinnerData,
     element: GuiElement,
 
     pub fn getRect(self: Spinner) Rect {
@@ -338,11 +356,19 @@ const Spinner = struct {
     }
 };
 
+const SpinnerData = struct {
+    min: i32,
+    max: i32,
+    value: i32,
+    editing: bool,
+};
+
 const Dropdown = struct {
     container: ?*const Container,
     pos: Vec2,
     size: Vec2,
     contents: type,
+    data: *DropdownData,
     element: GuiElement,
 
     pub fn getRect(self: Dropdown) Rect {
@@ -361,6 +387,15 @@ const Dropdown = struct {
     pub fn getElement(self: Dropdown) GuiElement {
         return self.element;
     }
+
+    pub fn getSelected(self: Dropdown) self.contents {
+        return @enumFromInt(self.data.selected);
+    }
+};
+
+const DropdownData = struct {
+    selected: usize = 0,
+    editing: bool = false,
 };
 
 pub const SidebarTabs = enum {
@@ -456,8 +491,11 @@ pub const pattern_list: List = .{
     .container = &sidebar,
     .pos = Vec2.init(20, 40),
     .size = Vec2.init(sidebar_width - 40, 260),
+    .data = &pattern_list_data,
     .element = .PatternList,
 };
+
+var pattern_list_data: ListData = .{};
 
 pub const sidebar_tab_buttons: TabButtons = .{
     .container = &sidebar,
@@ -473,7 +511,14 @@ pub const game_speed_slider: Slider = .{
     .size = Vec2.init(sidebar_width - 60 - 100, 20),
     .text_left = "",
     .text_right = "",
+    .data = &game_speed_slider_data,
     .element = .GameSpeedSlider,
+};
+
+var game_speed_slider_data: SliderData = .{
+    .min = 1,
+    .max = 240,
+    .value = 60,
 };
 
 pub const game_speed_spinner: Spinner = .{
@@ -481,7 +526,15 @@ pub const game_speed_spinner: Spinner = .{
     .pos = Vec2.init(game_speed_slider.size.x + 20, 10),
     .size = Vec2.init(game_speed_box.size.x - game_speed_slider.size.x - 30, 20),
     .text = "",
+    .data = &game_speed_spinner_data,
     .element = .GameSpeedSpinner,
+};
+
+var game_speed_spinner_data: SpinnerData = .{
+    .min = 0,
+    .max = 240,
+    .value = 60,
+    .editing = false,
 };
 
 pub const game_type_dropdown: Dropdown = .{
@@ -489,5 +542,10 @@ pub const game_type_dropdown: Dropdown = .{
     .pos = Vec2.init(20, 40),
     .size = Vec2.init(sidebar_width - 40, 40),
     .contents = GameType,
+    .data = &game_type_dropdown_data,
     .element = .GameTypeDropdown,
+};
+
+var game_type_dropdown_data: DropdownData = .{
+    .selected = @intFromEnum(GameType.@"Static Array"),
 };
