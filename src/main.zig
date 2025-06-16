@@ -70,8 +70,6 @@ pub fn main() !void {
     var selection: ?Rect = null;
     var held_corner: ?Corner = null;
 
-    ui.updateSidebar(screen_size);
-
     var game_speed: i32 = 60;
 
     var game_thread: GameThread = .{};
@@ -80,9 +78,7 @@ pub fn main() !void {
     defer game_thread.message(.{ .end_game = {} });
 
     while (!rl.windowShouldClose()) {
-        if (updateScreenSize()) {
-            ui.updateSidebar(screen_size);
-        }
+        _ = updateScreenSize();
 
         const mouse_pos = rl.getMousePosition();
         const mouse_delta = rl.getMouseDelta();

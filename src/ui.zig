@@ -3,11 +3,11 @@ const std = @import("std");
 const rl = @import("raylib");
 const rg = @import("raygui");
 const Vec2 = rl.Vector2;
-const Rect = rl.Rectangle;
+const RlRect = rl.Rectangle;
+
+const Rect = @import("rect.zig");
 
 const GameType = @import("main.zig").GameType;
-
-pub const sidebar_width = 250;
 
 pub const GuiElement = enum {
     Grid,
@@ -189,30 +189,14 @@ pub fn drawDropdown(d: Dropdown) bool {
     return false;
 }
 
-pub fn updateSidebar(screen_size: Vec2) void {
-    sidebar.pos.x = screen_size.x - sidebar_width;
-    sidebar.size.y = screen_size.y;
-}
-
 const Container = struct {
-    container: ?*const Container,
-    pos: Vec2,
-    size: Vec2,
+    rect: Rect,
     title: [:0]const u8,
     type: enum { Panel, GroupBox },
     element: GuiElement,
 
-    pub fn getRect(self: Container) Rect {
-        const pos = self.getPos();
-        return Rect.init(pos.x, pos.y, self.size.x, self.size.y);
-    }
-
-    pub fn getPos(self: Container) Vec2 {
-        if (self.container) |c| {
-            return c.getPos().add(self.pos);
-        } else {
-            return self.pos;
-        }
+    pub fn getRect(self: Container) RlRect {
+        return self.rect.rlRect();
     }
 
     pub fn getElement(self: Container) GuiElement {
@@ -221,23 +205,12 @@ const Container = struct {
 };
 
 const Button = struct {
-    container: ?*const Container,
-    pos: Vec2,
-    size: Vec2,
+    rect: Rect,
     text: [:0]const u8,
     element: GuiElement,
 
-    pub fn getRect(self: Button) Rect {
-        const pos = self.getPos();
-        return Rect.init(pos.x, pos.y, self.size.x, self.size.y);
-    }
-
-    pub fn getPos(self: Button) Vec2 {
-        if (self.container) |c| {
-            return c.getPos().add(self.pos);
-        } else {
-            return self.pos;
-        }
+    pub fn getRect(self: Button) RlRect {
+        return self.rect.rlRect();
     }
 
     pub fn getElement(self: Button) GuiElement {
@@ -246,23 +219,12 @@ const Button = struct {
 };
 
 const List = struct {
-    container: ?*const Container,
-    pos: Vec2,
-    size: Vec2,
+    rect: Rect,
     data: *ListData,
     element: GuiElement,
 
-    pub fn getRect(self: List) Rect {
-        const pos = self.getPos();
-        return Rect.init(pos.x, pos.y, self.size.x, self.size.y);
-    }
-
-    pub fn getPos(self: List) Vec2 {
-        if (self.container) |c| {
-            return c.getPos().add(self.pos);
-        } else {
-            return self.pos;
-        }
+    pub fn getRect(self: List) RlRect {
+        return self.rect.rlRect();
     }
 
     pub fn getElement(self: List) GuiElement {
@@ -277,46 +239,24 @@ const ListData = struct {
 };
 
 const TabButtons = struct {
-    container: ?*const Container,
-    pos: Vec2,
-    size: Vec2,
+    rect: Rect,
     offset: Vec2,
     tabs: type,
 
-    pub fn getRect(self: TabButtons) Rect {
-        const pos = self.getPos();
-        return Rect.init(pos.x, pos.y, self.size.x, self.size.y);
-    }
-
-    pub fn getPos(self: TabButtons) Vec2 {
-        if (self.container) |c| {
-            return c.getPos().add(self.pos);
-        } else {
-            return self.pos;
-        }
+    pub fn getRect(self: TabButtons) RlRect {
+        return self.rect.rlRect();
     }
 };
 
 const Slider = struct {
-    container: ?*const Container,
-    pos: Vec2,
-    size: Vec2,
+    rect: Rect,
     text_left: [:0]const u8,
     text_right: [:0]const u8,
     data: *SliderData,
     element: GuiElement,
 
-    pub fn getRect(self: Slider) Rect {
-        const pos = self.getPos();
-        return Rect.init(pos.x, pos.y, self.size.x, self.size.y);
-    }
-
-    pub fn getPos(self: Slider) Vec2 {
-        if (self.container) |c| {
-            return c.getPos().add(self.pos);
-        } else {
-            return self.pos;
-        }
+    pub fn getRect(self: Slider) RlRect {
+        return self.rect.rlRect();
     }
 
     pub fn getElement(self: Slider) GuiElement {
@@ -331,24 +271,13 @@ const SliderData = struct {
 };
 
 const Spinner = struct {
-    container: ?*const Container,
-    pos: Vec2,
-    size: Vec2,
+    rect: Rect,
     text: [:0]const u8,
     data: *SpinnerData,
     element: GuiElement,
 
-    pub fn getRect(self: Spinner) Rect {
-        const pos = self.getPos();
-        return Rect.init(pos.x, pos.y, self.size.x, self.size.y);
-    }
-
-    pub fn getPos(self: Spinner) Vec2 {
-        if (self.container) |c| {
-            return c.getPos().add(self.pos);
-        } else {
-            return self.pos;
-        }
+    pub fn getRect(self: Spinner) RlRect {
+        return self.rect.rlRect();
     }
 
     pub fn getElement(self: Spinner) GuiElement {
@@ -364,24 +293,13 @@ const SpinnerData = struct {
 };
 
 const Dropdown = struct {
-    container: ?*const Container,
-    pos: Vec2,
-    size: Vec2,
+    rect: Rect,
     contents: type,
     data: *DropdownData,
     element: GuiElement,
 
-    pub fn getRect(self: Dropdown) Rect {
-        const pos = self.getPos();
-        return Rect.init(pos.x, pos.y, self.size.x, self.size.y);
-    }
-
-    pub fn getPos(self: Dropdown) Vec2 {
-        if (self.container) |c| {
-            return c.getPos().add(self.pos);
-        } else {
-            return self.pos;
-        }
+    pub fn getRect(self: Dropdown) RlRect {
+        return self.rect.rlRect();
     }
 
     pub fn getElement(self: Dropdown) GuiElement {
@@ -420,77 +338,107 @@ const Grid = struct {
 
 pub const grid: Grid = .{};
 
-pub var sidebar: Container = .{
-    .container = null,
-    .pos = Vec2.init(0, 0),
-    .size = Vec2.init(sidebar_width, 0),
+pub const sidebar: Container = .{
+    .rect = .{
+        .parent = null,
+        .x = .{ .right = 0 },
+        .y = .{ .top = 0 },
+        .width = .{ .amount = 250 },
+        .height = .{ .ratio = 1 },
+    },
     .title = "Options",
     .type = .Panel,
     .element = .Sidebar,
 };
 
 pub const controls: Container = .{
-    .container = &sidebar,
-    .pos = Vec2.init(20, 40),
-    .size = Vec2.init(sidebar_width - 40, 260),
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .middle = 0 },
+        .y = .{ .top = 40 },
+        .width = .{ .relative = -40 },
+        .height = .{ .amount = 260 },
+    },
     .title = "Game controls",
     .type = .GroupBox,
     .element = .Sidebar,
 };
 
 pub const game_speed_box: Container = .{
-    .container = &sidebar,
-    .pos = Vec2.init(20, 320),
-    .size = Vec2.init(sidebar_width - 40, 40),
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .middle = 0 },
+        .y = .{ .top = 320 },
+        .width = .{ .relative = -40 },
+        .height = .{ .amount = 40 },
+    },
     .title = "Game speed",
     .type = .GroupBox,
     .element = .Sidebar,
 };
 
 pub const clear_button: Button = .{
-    .container = &controls,
-    .pos = Vec2.init(20, 20),
-    .size = Vec2.init(controls.size.x - 40, 40),
+    .rect = .{
+        .parent = &controls.rect,
+        .x = .{ .middle = 0 },
+        .y = .{ .top = 20 },
+        .width = .{ .relative = -40 },
+        .height = .{ .amount = 40 },
+    },
     .text = "Clear",
     .element = .ClearButton,
 };
 
 pub const randomize_button: Button = .{
-    .container = &controls,
-    .pos = Vec2.init(20, clear_button.pos.y + 60),
-    .size = Vec2.init(controls.size.x - 40, 40),
+    .rect = .{
+        .parent = &controls.rect,
+        .x = .{ .middle = 0 },
+        .y = .{ .top = 80 },
+        .width = .{ .relative = -40 },
+        .height = .{ .amount = 40 },
+    },
     .text = "Randomize",
     .element = .RandomizeButton,
 };
 
 pub const pause_button: Button = .{
-    .container = &controls,
-    .pos = Vec2.init(20, randomize_button.pos.y + 60),
-    .size = Vec2.init(controls.size.x - 40, 40),
+    .rect = .{
+        .parent = &controls.rect,
+        .x = .{ .middle = 0 },
+        .y = .{ .top = 140 },
+        .width = .{ .relative = -40 },
+        .height = .{ .amount = 40 },
+    },
     .text = "Pause",
     .element = .PauseButton,
 };
 
 pub const unpause_button: Button = .{
-    .container = pause_button.container,
-    .pos = pause_button.pos,
-    .size = pause_button.size,
+    .rect = pause_button.rect,
     .text = "Unpause",
     .element = .PauseButton,
 };
 
 pub const step_button: Button = .{
-    .container = &controls,
-    .pos = Vec2.init(20, pause_button.pos.y + 60),
-    .size = Vec2.init(controls.size.x - 40, 40),
+    .rect = .{
+        .parent = &controls.rect,
+        .x = .{ .middle = 0 },
+        .y = .{ .top = 200 },
+        .width = .{ .relative = -40 },
+        .height = .{ .amount = 40 },
+    },
     .text = "Step",
     .element = .StepButton,
 };
 
 pub const pattern_list: List = .{
-    .container = &sidebar,
-    .pos = Vec2.init(20, 40),
-    .size = Vec2.init(sidebar_width - 40, 260),
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .middle = 0 },
+        .y = .{ .top = 40 },
+        .width = .{ .relative = -40 },
+        .height = .{ .amount = 260 },
+    },
     .data = &pattern_list_data,
     .element = .PatternList,
 };
@@ -498,17 +446,25 @@ pub const pattern_list: List = .{
 var pattern_list_data: ListData = .{};
 
 pub const sidebar_tab_buttons: TabButtons = .{
-    .container = &sidebar,
-    .pos = Vec2.init(-30, 30),
-    .size = Vec2.init(32, 30),
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .left = -30 },
+        .y = .{ .top = 30 },
+        .width = .{ .amount = 32 },
+        .height = .{ .amount = 30 },
+    },
     .offset = Vec2.init(0, 35),
     .tabs = SidebarTabs,
 };
 
 pub const game_speed_slider: Slider = .{
-    .container = &game_speed_box,
-    .pos = Vec2.init(10, 10),
-    .size = Vec2.init(sidebar_width - 60 - 100, 20),
+    .rect = .{
+        .parent = &game_speed_box.rect,
+        .x = .{ .left = 10 },
+        .y = .{ .middle = 0 },
+        .width = .{ .relative = -115 },
+        .height = .{ .relative = -20 },
+    },
     .text_left = "",
     .text_right = "",
     .data = &game_speed_slider_data,
@@ -522,9 +478,13 @@ var game_speed_slider_data: SliderData = .{
 };
 
 pub const game_speed_spinner: Spinner = .{
-    .container = &game_speed_box,
-    .pos = Vec2.init(game_speed_slider.size.x + 20, 10),
-    .size = Vec2.init(game_speed_box.size.x - game_speed_slider.size.x - 30, 20),
+    .rect = .{
+        .parent = &game_speed_box.rect,
+        .x = .{ .right = -10 },
+        .y = .{ .middle = 0 },
+        .width = .{ .amount = 90 },
+        .height = .{ .relative = -20 },
+    },
     .text = "",
     .data = &game_speed_spinner_data,
     .element = .GameSpeedSpinner,
@@ -538,9 +498,13 @@ var game_speed_spinner_data: SpinnerData = .{
 };
 
 pub const game_type_dropdown: Dropdown = .{
-    .container = &sidebar,
-    .pos = Vec2.init(20, 40),
-    .size = Vec2.init(sidebar_width - 40, 40),
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .middle = 0 },
+        .y = .{ .top = 40 },
+        .width = .{ .relative = -40 },
+        .height = .{ .amount = 40 },
+    },
     .contents = GameType,
     .data = &game_type_dropdown_data,
     .element = .GameTypeDropdown,
