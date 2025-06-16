@@ -197,6 +197,10 @@ const Container = struct {
         return self.rect.rlRect();
     }
 
+    pub fn containsPoint(self: Container, point: Vec2) bool {
+        return rl.checkCollisionPointRec(point, self.getRect());
+    }
+
     pub fn getElement(self: Container) GuiElement {
         return self.element;
     }
@@ -211,6 +215,10 @@ const Button = struct {
         return self.rect.rlRect();
     }
 
+    pub fn containsPoint(self: Button, point: Vec2) bool {
+        return rl.checkCollisionPointRec(point, self.getRect());
+    }
+
     pub fn getElement(self: Button) GuiElement {
         return self.element;
     }
@@ -223,6 +231,10 @@ const List = struct {
 
     pub fn getRect(self: List) RlRect {
         return self.rect.rlRect();
+    }
+
+    pub fn containsPoint(self: List, point: Vec2) bool {
+        return rl.checkCollisionPointRec(point, self.getRect());
     }
 
     pub fn getElement(self: List) GuiElement {
@@ -246,6 +258,21 @@ const TabButtons = struct {
         return self.rect.rlRect();
     }
 
+    pub fn containsPoint(self: TabButtons, point: Vec2) bool {
+        const len = std.meta.fields(@typeInfo(self.tabs)).len;
+        var rect = self.getRect();
+
+        for (0..len) |_| {
+            if (rl.checkCollisionPointRec(point, rect)) {
+                return true;
+            }
+            rect.x += self.offset.x;
+            rect.y += self.offset.y;
+        }
+
+        return false;
+    }
+
     pub fn getElement(self: TabButtons) GuiElement {
         return self.element;
     }
@@ -260,6 +287,10 @@ const Slider = struct {
 
     pub fn getRect(self: Slider) RlRect {
         return self.rect.rlRect();
+    }
+
+    pub fn containsPoint(self: Slider, point: Vec2) bool {
+        return rl.checkCollisionPointRec(point, self.getRect());
     }
 
     pub fn getElement(self: Slider) GuiElement {
@@ -283,6 +314,10 @@ const Spinner = struct {
         return self.rect.rlRect();
     }
 
+    pub fn containsPoint(self: Spinner, point: Vec2) bool {
+        return rl.checkCollisionPointRec(point, self.getRect());
+    }
+
     pub fn getElement(self: Spinner) GuiElement {
         return self.element;
     }
@@ -303,6 +338,17 @@ const Dropdown = struct {
 
     pub fn getRect(self: Dropdown) RlRect {
         return self.rect.rlRect();
+    }
+
+    pub fn containsPoint(self: Dropdown, point: Vec2) bool {
+        var rect = self.getRect();
+        if (self.data.editing) {
+            rect.height += @floatFromInt(rg.guiGetStyle(.dropdownbox, rg.GuiDefaultProperty.text_spacing));
+            const len = std.meta.fields(@typeInfo(self.contents)).len;
+            rect.height *= len + 1;
+        }
+
+        return rl.checkCollisionPointRec(point, rect);
     }
 
     pub fn getElement(self: Dropdown) GuiElement {
