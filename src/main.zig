@@ -249,12 +249,8 @@ pub fn main() !void {
 
             ui.hovered_element = .Grid; // Assume we are hovering over the grid until proven otherwise
             const hovered_tab_button = ui.drawTabButtons(ui.sidebar_tab_buttons);
-            if (hovered_tab_button) |b| {
-                ui.hovered_element = switch (b) {
-                    .Settings => .TabSettings,
-                    .Patterns => .TabPatterns,
-                    .GameTypes => .TabGameTypes,
-                };
+            if (hovered_tab_button) |_| {
+                ui.hovered_element = .SidebarTabButtons;
             }
             // FIXME: no way to implement getElement() on the tab buttons yet
             // ui.grabGuiElement(.TabSettings);

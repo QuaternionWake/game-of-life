@@ -13,9 +13,7 @@ pub const GuiElement = enum {
     Grid,
     Sidebar,
 
-    TabSettings,
-    TabPatterns,
-    TabGameTypes,
+    SidebarTabButtons,
 
     ClearButton,
     RandomizeButton,
@@ -242,9 +240,14 @@ const TabButtons = struct {
     rect: Rect,
     offset: Vec2,
     tabs: type,
+    element: GuiElement,
 
     pub fn getRect(self: TabButtons) RlRect {
         return self.rect.rlRect();
+    }
+
+    pub fn getElement(self: TabButtons) GuiElement {
+        return self.element;
     }
 };
 
@@ -320,12 +323,8 @@ pub const SidebarTabs = enum {
     Settings,
     Patterns,
     GameTypes,
-    pub fn getGuiElement(self: SidebarTabs) GuiElement {
-        return switch (self) {
-            .Settings => .TabSettings,
-            .Patterns => .TabPatterns,
-            .GameTypes => .TabGameTypes,
-        };
+    pub fn getGuiElement(_: SidebarTabs) GuiElement {
+        return .SidebarTabButtons;
     }
 };
 
@@ -455,6 +454,7 @@ pub const sidebar_tab_buttons: TabButtons = .{
     },
     .offset = Vec2.init(0, 35),
     .tabs = SidebarTabs,
+    .element = .SidebarTabButtons,
 };
 
 pub const game_speed_slider: Slider = .{
