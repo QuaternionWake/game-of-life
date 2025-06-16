@@ -79,6 +79,7 @@ pub fn main() !void {
 
     while (!rl.windowShouldClose()) {
         _ = updateScreenSize();
+        ui.grabElement();
 
         const mouse_pos = rl.getMousePosition();
         const mouse_delta = rl.getMouseDelta();
@@ -90,7 +91,7 @@ pub fn main() !void {
         };
         const scroll = rl.getMouseWheelMove();
 
-        if (ui.canGrab(.Grid)) {
+        if (ui.held_element == .Grid or ui.held_element == null) {
             if (!rl.isKeyDown(.left_control)) {
                 // Move and zoom the camera
                 // ------------------------
@@ -134,7 +135,6 @@ pub fn main() !void {
                 const tile = if (rl.isMouseButtonDown(.left)) true else if (rl.isMouseButtonDown(.right)) false else break :blk;
                 game_thread.message(.{ .set_tile = .{ .x = pointer_pos_int.x, .y = pointer_pos_int.y, .tile = tile } });
             }
-            ui.grabGuiElement(ui.grid);
         }
 
         // Manipulate the held pattern
@@ -247,15 +247,12 @@ pub fn main() !void {
             }
             camera.end();
 
-            ui.hovered_element = .Grid; // Assume we are hovering over the grid until proven otherwise
+            // ui.hovered_element = .Grid; // Assume we are hovering over the grid until proven otherwise
             const hovered_tab_button = ui.drawTabButtons(ui.sidebar_tab_buttons);
-            if (hovered_tab_button) |_| {
-                ui.hovered_element = .SidebarTabButtons;
-            }
-            // FIXME: no way to implement getElement() on the tab buttons yet
-            // ui.grabGuiElement(.TabSettings);
-            // ui.grabGuiElement(.TabPatterns);
-            // ui.grabGuiElement(.TabGameTypes);
+            _ = hovered_tab_button;
+            // if (hovered_tab_button) |_| {
+            //     ui.hovered_element = .SidebarTabButtons;
+            // }
 
             ui.drawContainer(ui.sidebar);
             if (rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect())) ui.hovered_element = .Sidebar;
@@ -263,32 +260,15 @@ pub fn main() !void {
             switch (ui.sidebar_tab) {
                 .Settings => {
                     ui.drawContainer(ui.controls);
-
                     if (ui.drawButton(ui.clear_button)) game_thread.message(.{ .clear = {} });
-                    ui.hoverGuiElement(ui.clear_button);
-                    ui.grabGuiElement(ui.clear_button);
-
                     if (ui.drawButton(ui.randomize_button)) game_thread.message(.{ .randomize = {} });
-                    ui.hoverGuiElement(ui.randomize_button);
-                    ui.grabGuiElement(ui.randomize_button);
-
                     if (game_thread.game_paused) {
                         if (ui.drawButton(ui.unpause_button)) game_thread.message(.{ .unpause = {} });
-                        ui.hoverGuiElement(ui.pause_button);
-                        ui.grabGuiElement(ui.pause_button);
-
                         if (ui.drawButton(ui.step_button)) game_thread.message(.{ .step = {} });
-                        ui.hoverGuiElement(ui.step_button);
-                        ui.grabGuiElement(ui.step_button);
                     } else {
                         if (ui.drawButton(ui.pause_button)) game_thread.message(.{ .pause = {} });
-                        ui.hoverGuiElement(ui.pause_button);
-                        ui.grabGuiElement(ui.pause_button);
-
                         rg.guiSetState(@intFromEnum(rg.GuiState.state_disabled));
                         if (ui.drawButton(ui.step_button)) game_thread.message(.{ .step = {} });
-                        ui.hoverGuiElement(ui.step_button);
-                        ui.grabGuiElement(ui.step_button);
                         rg.guiSetState(@intFromEnum(rg.GuiState.state_normal));
                     }
 
@@ -296,19 +276,12 @@ pub fn main() !void {
                     if (ui.drawSlider(ui.game_speed_slider)) {
                         game_speed = @intFromFloat(ui.game_speed_slider.data.value);
                     }
-                    ui.hoverGuiElement(ui.game_speed_slider);
-                    ui.grabGuiElement(ui.game_speed_slider);
-
                     ui.drawSpinner(ui.game_speed_spinner);
-                    ui.hoverGuiElement(ui.game_speed_spinner);
-                    ui.grabGuiElement(ui.game_speed_spinner);
                 },
                 .Patterns => blk: {
                     const names_list = patterns.getNames(ally) catch break :blk;
                     defer names_list.deinit();
                     ui.drawListView(ui.pattern_list, names_list.items);
-                    ui.hoverGuiElement(ui.pattern_list);
-                    ui.grabGuiElement(ui.pattern_list);
                 },
                 .GameTypes => {
                     if (ui.drawDropdown(ui.game_type_dropdown)) {
@@ -319,8 +292,6 @@ pub fn main() !void {
                         };
                         game_thread.message(.{ .change_game = gol });
                     }
-                    ui.hoverGuiElement(ui.game_type_dropdown);
-                    ui.grabGuiElement(ui.game_type_dropdown);
                 },
             }
 
@@ -360,9 +331,6 @@ pub fn main() !void {
                 rl.drawText("C - Copy    P - Paste    H/V - Flip horizontally/vertically    R - Rotate [SHIFT to invert]", 10, @as(i32, @intFromFloat(screen_size.y)) - 30 - 17, 17, .dark_gray);
                 rl.drawText("D - Deselect    ESC - Clear clipboard & pattern    SPACE - Pause", 10, @as(i32, @intFromFloat(screen_size.y)) - 10 - 17, 17, .dark_gray);
             }
-
-            ui.hoverGuiElement(ui.sidebar);
-            ui.grabGuiElement(ui.sidebar);
         }
         rl.endDrawing();
     }

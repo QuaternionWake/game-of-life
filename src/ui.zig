@@ -32,21 +32,71 @@ pub var held_element: ?GuiElement = null;
 pub var hovered_element: GuiElement = .Grid;
 pub var sidebar_tab: SidebarTabs = .Settings;
 
-pub fn grabGuiElement(element: anytype) void {
-    const holding_mouse = rl.isMouseButtonDown(.left) or rl.isMouseButtonDown(.right);
-    if (canGrab(element.getElement())) {
-        held_element = if (holding_mouse) element.getElement() else null;
-    }
-}
+const top_level_elements = .{
+    sidebar_tab_buttons,
+    sidebar,
+    grid,
+};
 
-pub fn canGrab(element: GuiElement) bool {
-    return held_element == element or (held_element == null and hovered_element == element);
-}
+const settings_elements = .{
+    clear_button,
+    randomize_button,
+    pause_button,
+    unpause_button,
+    step_button,
+    game_speed_slider,
+    game_speed_spinner,
 
-pub fn hoverGuiElement(element: anytype) void {
+    controls,
+    game_speed_box,
+};
+
+const pattern_list_elements = .{
+    pattern_list,
+};
+
+const game_type_elements = .{
+    game_type_dropdown,
+};
+
+pub fn grabElement() void {
     const mouse_pos = rl.getMousePosition();
-    if (rl.checkCollisionPointRec(mouse_pos, element.getRect())) {
-        hovered_element = element.getElement();
+    inline for (top_level_elements) |e| {
+        if (e.containsPoint(mouse_pos)) {
+            hovered_element = e.getElement();
+            break;
+        }
+    }
+
+    switch (sidebar_tab) {
+        .Settings => inline for (settings_elements) |e| {
+            if (e.containsPoint(mouse_pos)) {
+                hovered_element = e.getElement();
+                break;
+            }
+        },
+        .Patterns => inline for (pattern_list_elements) |e| {
+            if (e.containsPoint(mouse_pos)) {
+                hovered_element = e.getElement();
+                break;
+            }
+        },
+        .GameTypes => inline for (game_type_elements) |e| {
+            if (e.containsPoint(mouse_pos)) {
+                hovered_element = e.getElement();
+                break;
+            }
+        },
+    }
+
+    if (rl.isMouseButtonDown(.left) or rl.isMouseButtonDown(.right)) {
+        if (held_element != null) {
+            return;
+        } else {
+            held_element = hovered_element;
+        }
+    } else {
+        held_element = null;
     }
 }
 
@@ -259,7 +309,7 @@ const TabButtons = struct {
     }
 
     pub fn containsPoint(self: TabButtons, point: Vec2) bool {
-        const len = std.meta.fields(@typeInfo(self.tabs)).len;
+        const len = std.meta.fields(self.tabs).len;
         var rect = self.getRect();
 
         for (0..len) |_| {
@@ -344,7 +394,7 @@ const Dropdown = struct {
         var rect = self.getRect();
         if (self.data.editing) {
             rect.height += @floatFromInt(rg.guiGetStyle(.dropdownbox, rg.GuiDefaultProperty.text_spacing));
-            const len = std.meta.fields(@typeInfo(self.contents)).len;
+            const len = std.meta.fields(self.contents).len;
             rect.height *= len + 1;
         }
 
@@ -376,6 +426,14 @@ pub const SidebarTabs = enum {
 
 // dummy struct for consistency
 const Grid = struct {
+    pub fn getRect() RlRect {
+        return RlRect.init(0, 0, @floatFromInt(rl.getScreenWidth()), @floatFromInt(rl.getScreenHeight()));
+    }
+
+    pub fn containsPoint(_: Grid, _: Vec2) bool {
+        return true;
+    }
+
     pub fn getElement(_: Grid) GuiElement {
         return .Grid;
     }
