@@ -29,6 +29,7 @@ pub const GuiElement = enum {
 };
 
 pub var held_element: ?GuiElement = null;
+pub var previous_held_element: ?GuiElement = null;
 pub var hovered_element: GuiElement = .Grid;
 pub var sidebar_tab: SidebarTabs = .Settings;
 
@@ -60,6 +61,7 @@ const game_type_elements = .{
 };
 
 pub fn grabElement() void {
+    previous_held_element = held_element;
     const mouse_pos = rl.getMousePosition();
     inline for (top_level_elements) |e| {
         if (e.containsPoint(mouse_pos)) {
@@ -101,9 +103,9 @@ pub fn grabElement() void {
 }
 
 pub fn drawButton(b: Button) bool {
-    if (b.element == held_element) {
+    if (b.element == previous_held_element) {
         return rg.guiButton(b.getRect(), b.text) != 0;
-    } else if (held_element == null) {
+    } else if (previous_held_element == null) {
         _ = rg.guiButton(b.getRect(), b.text);
         return false;
     } else {
@@ -132,11 +134,11 @@ pub fn drawTabButtons(tb: TabButtons) ?tb.tabs {
 
     var hovering: ?tb.tabs = null;
     inline for (fields) |field| {
-        if (@as(tb.tabs, @enumFromInt(field.value)).getGuiElement() == held_element) {
+        if (@as(tb.tabs, @enumFromInt(field.value)).getGuiElement() == previous_held_element) {
             if (rg.guiButton(rect, field.name) != 0) {
                 sidebar_tab = @enumFromInt(field.value);
             }
-        } else if (held_element == null) {
+        } else if (previous_held_element == null) {
             _ = rg.guiButton(rect, field.name);
         } else {
             rg.guiLock();
@@ -157,7 +159,7 @@ pub fn drawListView(list: List, items: [][*:0]const u8) void {
     var active_inner: i32 = if (list.data.active) |a| @intCast(a) else -1;
     var focused_inner: i32 = if (list.data.focused) |f| @intCast(f) else -1;
 
-    if (list.element == held_element or held_element == null) {
+    if (list.element == previous_held_element or previous_held_element == null) {
         _ = rg.guiListViewEx(list.getRect(), items, &list.data.scroll, &active_inner, &focused_inner);
 
         list.data.active = if (active_inner != -1) @intCast(active_inner) else null;
@@ -170,9 +172,9 @@ pub fn drawListView(list: List, items: [][*:0]const u8) void {
 }
 
 pub fn drawSlider(s: Slider) bool {
-    if (s.element == held_element) {
+    if (s.element == previous_held_element) {
         return rg.guiSlider(s.getRect(), s.text_left, s.text_right, &s.data.value, s.data.min, s.data.max) != 0;
-    } else if (held_element == null) {
+    } else if (previous_held_element == null) {
         _ = rg.guiSlider(s.getRect(), s.text_left, s.text_right, &s.data.value, s.data.min, s.data.max);
         return false;
     } else {
@@ -184,9 +186,9 @@ pub fn drawSlider(s: Slider) bool {
 }
 
 pub fn drawSpinner(sb: Spinner) void {
-    if (sb.element == held_element) {
+    if (sb.element == previous_held_element) {
         sb.data.editing = rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.min, sb.data.max, sb.data.editing) != 0;
-    } else if (held_element == null) {
+    } else if (previous_held_element == null) {
         // giving it val for min and max both prevents it form editing the value and from drawing
         // the wrong, edited value for one frame
         sb.data.editing = rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.value, sb.data.value, sb.data.editing) != 0;
@@ -217,12 +219,12 @@ pub fn drawDropdown(d: Dropdown) bool {
 
     var selected_idx: i32 = @intCast(d.data.selected);
 
-    if (d.element == held_element) {
+    if (d.element == previous_held_element) {
         _ = rg.guiDropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing);
         if (rl.checkCollisionPointRec(rl.getMousePosition(), d.getRect()) and rl.isMouseButtonReleased(.left)) {
             d.data.editing = !d.data.editing;
         }
-    } else if (held_element == null) {
+    } else if (previous_held_element == null) {
         _ = rg.guiDropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing);
     } else {
         rg.guiLock();
