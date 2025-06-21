@@ -102,6 +102,7 @@ pub fn grabElement() void {
     }
 }
 
+/// Returns true when clicked
 pub fn drawButton(b: Button) bool {
     if (b.element == previous_held_element) {
         return rg.guiButton(b.getRect(), b.text) != 0;
@@ -127,12 +128,11 @@ pub fn drawContainer(c: Container) void {
     }
 }
 
-pub fn drawTabButtons(tb: TabButtons) ?tb.tabs {
+pub fn drawTabButtons(tb: TabButtons) void {
     var rect = tb.getRect();
 
     const fields = std.meta.fields(tb.tabs);
 
-    var hovering: ?tb.tabs = null;
     inline for (fields) |field| {
         if (@as(tb.tabs, @enumFromInt(field.value)).getGuiElement() == previous_held_element) {
             if (rg.guiButton(rect, field.name) != 0) {
@@ -145,14 +145,10 @@ pub fn drawTabButtons(tb: TabButtons) ?tb.tabs {
             _ = rg.guiButton(rect, field.name);
             rg.guiUnlock();
         }
-        if (rl.checkCollisionPointRec(rl.getMousePosition(), rect)) {
-            hovering = @enumFromInt(field.value);
-        }
 
         rect.x += tb.offset.x;
         rect.y += tb.offset.y;
     }
-    return hovering;
 }
 
 pub fn drawListView(list: List, items: [][*:0]const u8) void {
@@ -171,34 +167,41 @@ pub fn drawListView(list: List, items: [][*:0]const u8) void {
     }
 }
 
+/// Returns true when value has changed
 pub fn drawSlider(s: Slider) bool {
-    if (s.element == previous_held_element) {
-        return rg.guiSlider(s.getRect(), s.text_left, s.text_right, &s.data.value, s.data.min, s.data.max) != 0;
-    } else if (previous_held_element == null) {
+    const old_value = s.data.value;
+    if (s.element == previous_held_element or previous_held_element == null) {
         _ = rg.guiSlider(s.getRect(), s.text_left, s.text_right, &s.data.value, s.data.min, s.data.max);
-        return false;
     } else {
         rg.guiLock();
         _ = rg.guiSlider(s.getRect(), s.text_left, s.text_right, &s.data.value, s.data.min, s.data.max);
         rg.guiUnlock();
-        return false;
     }
+    return old_value != s.data.value;
 }
 
-pub fn drawSpinner(sb: Spinner) void {
+/// Returns true when value has changed
+pub fn drawSpinner(sb: Spinner) bool {
+    const old_value = sb.data.value;
     if (sb.element == previous_held_element) {
-        sb.data.editing = rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.min, sb.data.max, sb.data.editing) != 0;
+        if (rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.min, sb.data.max, sb.data.editing) != 0) {
+            sb.data.editing = !sb.data.editing;
+        }
     } else if (previous_held_element == null) {
         // giving it val for min and max both prevents it form editing the value and from drawing
         // the wrong, edited value for one frame
-        sb.data.editing = rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.value, sb.data.value, sb.data.editing) != 0;
+        if (rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.value, sb.data.value, sb.data.editing) != 0) {
+            sb.data.editing = !sb.data.editing;
+        }
     } else {
         rg.guiLock();
         _ = rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.min, sb.data.max, sb.data.editing);
         rg.guiUnlock();
     }
+    return old_value != sb.data.value;
 }
 
+/// Returns true when value has changed
 pub fn drawDropdown(d: Dropdown) bool {
     const fields = std.meta.fields(d.contents);
     const field_names = comptime blk: {
