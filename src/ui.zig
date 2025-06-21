@@ -600,8 +600,8 @@ pub const game_speed_spinner: Spinner = .{
 };
 
 var game_speed_spinner_data: SpinnerData = .{
-    .min = 0,
-    .max = 240,
+    .min = 1,
+    .max = std.math.maxInt(i32),
     .value = 60,
     .editing = false,
 };
