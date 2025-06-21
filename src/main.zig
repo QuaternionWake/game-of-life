@@ -70,7 +70,7 @@ pub fn main() !void {
     var selection: ?Rect = null;
     var held_corner: ?Corner = null;
 
-    var game_speed: i32 = 60;
+    var game_speed: u32 = 60;
 
     var game_thread: GameThread = .{};
     const thread = try Thread.spawn(.{}, GameThread.run, .{ &game_thread, gol });
@@ -247,15 +247,8 @@ pub fn main() !void {
             }
             camera.end();
 
-            // ui.hovered_element = .Grid; // Assume we are hovering over the grid until proven otherwise
-            const hovered_tab_button = ui.drawTabButtons(ui.sidebar_tab_buttons);
-            _ = hovered_tab_button;
-            // if (hovered_tab_button) |_| {
-            //     ui.hovered_element = .SidebarTabButtons;
-            // }
-
+            ui.drawTabButtons(ui.sidebar_tab_buttons);
             ui.drawContainer(ui.sidebar);
-            if (rl.checkCollisionPointRec(mouse_pos, ui.sidebar.getRect())) ui.hovered_element = .Sidebar;
 
             switch (ui.sidebar_tab) {
                 .Settings => {
@@ -275,8 +268,16 @@ pub fn main() !void {
                     ui.drawContainer(ui.game_speed_box);
                     if (ui.drawSlider(ui.game_speed_slider)) {
                         game_speed = @intFromFloat(ui.game_speed_slider.data.value);
+                        ui.game_speed_spinner.data.value = @intCast(game_speed);
                     }
-                    ui.drawSpinner(ui.game_speed_spinner);
+                    if (ui.drawSpinner(ui.game_speed_spinner)) {
+                        game_speed = @intCast(ui.game_speed_spinner.data.value);
+                        ui.game_speed_slider.data.value = math.clamp(
+                            @as(f32, @floatFromInt(game_speed)),
+                            ui.game_speed_slider.data.min,
+                            ui.game_speed_slider.data.max,
+                        );
+                    }
                 },
                 .Patterns => blk: {
                     const names_list = patterns.getNames(ally) catch break :blk;
