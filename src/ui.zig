@@ -26,6 +26,9 @@ pub const GuiElement = enum {
     PatternList,
 
     GameTypeDropdown,
+
+    DynamicArrayWidthSpinner,
+    DynamicArrayHeightSpinner,
 };
 
 pub var held_element: ?GuiElement = null;
@@ -621,4 +624,57 @@ pub const game_type_dropdown: Dropdown = .{
 
 var game_type_dropdown_data: DropdownData = .{
     .selected = @intFromEnum(GameType.@"Static Array"),
+};
+
+pub const dynamic_array_options_box: Container = .{
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .middle = 0 },
+        .y = .{ .top = 100 },
+        .width = .{ .relative = -40 },
+        .height = .{ .amount = 80 },
+    },
+    .title = "Options",
+    .type = .GroupBox,
+    .element = .Sidebar,
+};
+
+pub const dynamic_array_width_spinner: Spinner = .{
+    .rect = .{
+        .parent = &dynamic_array_options_box.rect,
+        .x = .{ .left = 60 },
+        .y = .{ .top = 15 },
+        .width = .{ .relative = -80 },
+        .height = .{ .amount = 20 },
+    },
+    .text = "Width: ",
+    .data = &dynamic_array_width_spinner_data,
+    .element = .DynamicArrayWidthSpinner,
+};
+
+var dynamic_array_width_spinner_data: SpinnerData = .{
+    .min = 1,
+    .max = std.math.maxInt(i32),
+    .value = 256,
+    .editing = false,
+};
+
+pub const dynamic_array_height_spinner: Spinner = .{
+    .rect = .{
+        .parent = &dynamic_array_options_box.rect,
+        .x = .{ .left = 60 },
+        .y = .{ .top = 45 },
+        .width = .{ .relative = -80 },
+        .height = .{ .amount = 20 },
+    },
+    .text = "Height: ",
+    .data = &dynamic_array_height_spinner_data,
+    .element = .DynamicArrayHeightSpinner,
+};
+
+var dynamic_array_height_spinner_data: SpinnerData = .{
+    .min = 1,
+    .max = std.math.maxInt(i32),
+    .value = 256,
+    .editing = false,
 };

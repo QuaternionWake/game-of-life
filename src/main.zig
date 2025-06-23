@@ -285,6 +285,25 @@ pub fn main() !void {
                     ui.drawListView(ui.pattern_list, names_list.items);
                 },
                 .GameTypes => {
+                    switch (ui.game_type_dropdown.getSelected()) {
+                        .@"Static Array" => {
+                            // static array info/options
+                        },
+                        .@"Dynamic Array" => {
+                            // dynamic array info/options
+                            // xwrap
+                            // ywrap
+                            // xlen
+                            // ylen
+                            ui.drawContainer(ui.dynamic_array_options_box);
+                            _ = ui.drawSpinner(ui.dynamic_array_width_spinner);
+                            _ = ui.drawSpinner(ui.dynamic_array_height_spinner);
+                        },
+                        .Hashset => {
+                            // hashset info/options
+                        },
+                    }
+
                     if (ui.drawDropdown(ui.game_type_dropdown)) {
                         gol = switch (ui.game_type_dropdown.getSelected()) {
                             .@"Static Array" => static_array_game.gol(),
