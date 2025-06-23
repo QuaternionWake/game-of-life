@@ -66,6 +66,17 @@ const game_type_elements = .{
     game_type_dropdown,
 };
 
+const static_game_elements = .{};
+
+const dynamic_game_elemnts = .{
+    dynamic_array_height_spinner,
+    dynamic_array_width_spinner,
+    dynamic_array_xwrap_dropdown,
+    dynamic_array_ywrap_dropdown,
+};
+
+const hashset_game_elements = .{};
+
 pub fn grabElement() void {
     previous_held_element = held_element;
     const mouse_pos = rl.getMousePosition();
@@ -93,6 +104,27 @@ pub fn grabElement() void {
             if (e.containsPoint(mouse_pos)) {
                 hovered_element = e.getElement();
                 break;
+            }
+        } else {
+            switch (game_type_dropdown.getSelected()) {
+                .@"Static Array" => inline for (static_game_elements) |e2| {
+                    if (e2.containsPoint(mouse_pos)) {
+                        hovered_element = e2.getElement();
+                        break;
+                    }
+                },
+                .@"Dynamic Array" => inline for (dynamic_game_elemnts) |e2| {
+                    if (e2.containsPoint(mouse_pos)) {
+                        hovered_element = e2.getElement();
+                        break;
+                    }
+                },
+                .Hashset => inline for (hashset_game_elements) |e2| {
+                    if (e2.containsPoint(mouse_pos)) {
+                        hovered_element = e2.getElement();
+                        break;
+                    }
+                },
             }
         },
     }

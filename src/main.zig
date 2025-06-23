@@ -298,8 +298,8 @@ pub fn main() !void {
                             ui.drawContainer(ui.dynamic_array_options_box);
                             _ = ui.drawSpinner(ui.dynamic_array_width_spinner);
                             _ = ui.drawSpinner(ui.dynamic_array_height_spinner);
-                            _ = ui.drawDropdown(ui.dynamic_array_xwrap_dropdown);
                             _ = ui.drawDropdown(ui.dynamic_array_ywrap_dropdown);
+                            _ = ui.drawDropdown(ui.dynamic_array_xwrap_dropdown);
                         },
                         .Hashset => {
                             // hashset info/options
