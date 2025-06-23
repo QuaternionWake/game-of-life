@@ -218,25 +218,33 @@ pub fn drawSlider(s: Slider) bool {
     return old_value != s.data.value;
 }
 
-/// Returns true when value has changed
-pub fn drawSpinner(sb: Spinner) bool {
+/// If `return_on_change` is true - retruns true whenever value changes.
+/// Otherwise, returns true when editing is finished.
+pub fn drawSpinner(sb: Spinner, return_on_change: bool) bool {
     const old_value = sb.data.value;
+    var stopped_editing = false;
     if (sb.element == previous_held_element) {
         if (rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.min, sb.data.max, sb.data.editing) != 0) {
             sb.data.editing = !sb.data.editing;
+            stopped_editing = !sb.data.editing;
         }
     } else if (previous_held_element == null) {
         // giving it val for min and max both prevents it form editing the value and from drawing
         // the wrong, edited value for one frame
         if (rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.value, sb.data.value, sb.data.editing) != 0) {
             sb.data.editing = !sb.data.editing;
+            stopped_editing = !sb.data.editing;
         }
     } else {
         rg.guiLock();
         _ = rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.min, sb.data.max, sb.data.editing);
         rg.guiUnlock();
     }
-    return old_value != sb.data.value;
+    if (return_on_change) {
+        return old_value != sb.data.value;
+    } else {
+        return stopped_editing;
+    }
 }
 
 /// Returns true when value has changed

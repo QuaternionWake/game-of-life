@@ -270,7 +270,7 @@ pub fn main() !void {
                         game_speed = @intFromFloat(ui.game_speed_slider.data.value);
                         ui.game_speed_spinner.data.value = @intCast(game_speed);
                     }
-                    if (ui.drawSpinner(ui.game_speed_spinner)) {
+                    if (ui.drawSpinner(ui.game_speed_spinner, true)) {
                         game_speed = @intCast(ui.game_speed_spinner.data.value);
                         ui.game_speed_slider.data.value = math.clamp(
                             @as(f32, @floatFromInt(game_speed)),
@@ -296,10 +296,10 @@ pub fn main() !void {
                             // xlen
                             // ylen
                             ui.drawContainer(ui.dynamic_array_options_box);
-                            if (ui.drawSpinner(ui.dynamic_array_width_spinner)) {
+                            if (ui.drawSpinner(ui.dynamic_array_width_spinner, false)) {
                                 dynamic_array_game.setXLen(@intCast(ui.dynamic_array_width_spinner.data.value));
                             }
-                            if (ui.drawSpinner(ui.dynamic_array_height_spinner)) {
+                            if (ui.drawSpinner(ui.dynamic_array_height_spinner, false)) {
                                 dynamic_array_game.setYLen(@intCast(ui.dynamic_array_height_spinner.data.value));
                             }
                             if (ui.drawDropdown(ui.dynamic_array_ywrap_dropdown)) {
