@@ -64,7 +64,7 @@ pub fn setXLen(self: *Self, new_len: usize) void {
     const active_board = self.getBoard();
     for (0..self.y_len) |y| {
         for (0..width) |x| {
-            new_board[y * new_len + x] = active_board[y * self.y_len + x];
+            new_board[y * new_len + x] = active_board[y * self.x_len + x];
         }
     }
     self.ally.free(self.front_board);
