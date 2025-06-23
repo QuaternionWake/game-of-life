@@ -291,10 +291,6 @@ pub fn main() !void {
                         },
                         .@"Dynamic Array" => {
                             // dynamic array info/options
-                            // xwrap
-                            // ywrap
-                            // xlen
-                            // ylen
                             ui.drawContainer(ui.dynamic_array_options_box);
                             if (ui.drawSpinner(ui.dynamic_array_width_spinner, false)) {
                                 dynamic_array_game.setXLen(@intCast(ui.dynamic_array_width_spinner.data.value));
