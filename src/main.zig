@@ -296,10 +296,18 @@ pub fn main() !void {
                             // xlen
                             // ylen
                             ui.drawContainer(ui.dynamic_array_options_box);
-                            _ = ui.drawSpinner(ui.dynamic_array_width_spinner);
-                            _ = ui.drawSpinner(ui.dynamic_array_height_spinner);
-                            _ = ui.drawDropdown(ui.dynamic_array_ywrap_dropdown);
-                            _ = ui.drawDropdown(ui.dynamic_array_xwrap_dropdown);
+                            if (ui.drawSpinner(ui.dynamic_array_width_spinner)) {
+                                dynamic_array_game.setXLen(@intCast(ui.dynamic_array_width_spinner.data.value));
+                            }
+                            if (ui.drawSpinner(ui.dynamic_array_height_spinner)) {
+                                dynamic_array_game.setYLen(@intCast(ui.dynamic_array_height_spinner.data.value));
+                            }
+                            if (ui.drawDropdown(ui.dynamic_array_ywrap_dropdown)) {
+                                dynamic_array_game.setYWrap(ui.dynamic_array_ywrap_dropdown.getSelected());
+                            }
+                            if (ui.drawDropdown(ui.dynamic_array_xwrap_dropdown)) {
+                                dynamic_array_game.setXWrap(ui.dynamic_array_xwrap_dropdown.getSelected());
+                            }
                         },
                         .Hashset => {
                             // hashset info/options
