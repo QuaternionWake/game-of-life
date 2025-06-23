@@ -6,6 +6,7 @@ const Allocator = std.mem.Allocator;
 
 const Gol = @import("../GameOfLife.zig");
 const Tile = Gol.Tile;
+const UpgradableLock = @import("../UpgradableLock.zig");
 
 const Board = []bool;
 
@@ -17,6 +18,8 @@ y_len: usize = 256,
 ally: Allocator,
 x_wrap: Wrap = .Normal,
 y_wrap: Wrap = .Normal,
+
+lock: UpgradableLock = .{},
 
 pub const Wrap = enum { None, Normal, Inverted };
 
@@ -53,7 +56,8 @@ pub fn gol(self: *Self) Gol {
 }
 
 pub fn setXLen(self: *Self, new_len: usize) void {
-    // FIXME: use a mutex here
+    self.lock.lock();
+    defer self.lock.unlock();
     const width = @min(self.x_len, new_len);
     const new_board = self.ally.alloc(bool, new_len * self.y_len) catch unreachable;
     const new_back_board = self.ally.alloc(bool, new_len * self.y_len) catch unreachable;
@@ -72,21 +76,28 @@ pub fn setXLen(self: *Self, new_len: usize) void {
 }
 
 pub fn setYLen(self: *Self, new_len: usize) void {
-    // FIXME: use a mutex here
+    self.lock.lock();
+    defer self.lock.unlock();
     self.front_board = self.ally.realloc(self.front_board, self.x_len * new_len) catch unreachable;
     self.back_board = self.ally.realloc(self.back_board, self.x_len * new_len) catch unreachable;
     self.y_len = new_len;
 }
 
 pub fn setXWrap(self: *Self, wrap: Wrap) void {
+    self.lock.lock();
+    defer self.lock.unlock();
     self.x_wrap = wrap;
 }
 
 pub fn setYWrap(self: *Self, wrap: Wrap) void {
+    self.lock.lock();
+    defer self.lock.unlock();
     self.y_wrap = wrap;
 }
 
 fn clear(self: *Self) void {
+    self.lock.lock();
+    defer self.lock.unlock();
     const board = self.getBoard();
     for (board) |*tile| {
         tile.* = false;
@@ -94,6 +105,8 @@ fn clear(self: *Self) void {
 }
 
 fn randomize(self: *Self, rng: Random) void {
+    self.lock.lock();
+    defer self.lock.unlock();
     const board = self.getBoard();
     for (board) |*tile| {
         tile.* = rng.boolean();
@@ -101,6 +114,8 @@ fn randomize(self: *Self, rng: Random) void {
 }
 
 fn setTile(self: *Self, x: isize, y: isize, tile: bool) void {
+    self.lock.lock();
+    defer self.lock.unlock();
     const board = self.getBoard();
     if (x >= 0 and x < self.x_len and y >= 0 and y < self.y_len) {
         self.setTileBoard(board, @intCast(x), @intCast(y), tile);
@@ -108,6 +123,8 @@ fn setTile(self: *Self, x: isize, y: isize, tile: bool) void {
 }
 
 fn setTiles(self: *Self, x: isize, y: isize, tiles: []Tile) void {
+    self.lock.lock();
+    defer self.lock.unlock();
     const board = self.getBoard();
     for (tiles) |orig_tile| {
         const tile = .{ .x = orig_tile.x + x, .y = orig_tile.y + y };
@@ -118,6 +135,8 @@ fn setTiles(self: *Self, x: isize, y: isize, tiles: []Tile) void {
 }
 
 fn getTiles(self: *Self, x_start: isize, y_start: isize, x_end: isize, y_end: isize, ally: Allocator) List(Tile) {
+    self.lock.lockShared();
+    defer self.lock.unlockShared();
     const board = self.getBoard();
     // no shadowning :'(
     const x_start_: usize = @intCast(@max(x_start, 0));
@@ -138,9 +157,14 @@ fn getTiles(self: *Self, x_start: isize, y_start: isize, x_end: isize, y_end: is
 }
 
 fn next(self: *Self) void {
-    self.flipped = !self.flipped;
-    const read_board = self.getInactiveBoard();
-    const write_board = self.getBoard();
+    // not having this **ZERO NANOSECOND** sleep here somehow causes the game
+    // thread to near-permanantly hog the lock on this game causing the UI to
+    // lock up if the target gens/s is larger than actual gens/s
+    std.Thread.sleep(0);
+    self.lock.lockUpgradable();
+
+    const read_board = self.getBoard();
+    const write_board = self.getInactiveBoard();
 
     for (1..self.x_len - 1) |x| {
         for (1..self.y_len - 1) |y| {
@@ -160,6 +184,10 @@ fn next(self: *Self) void {
         const tile_2 = self.nextTileWrapping(read_board, self.x_len - 1, y);
         self.setTileBoard(write_board, self.x_len - 1, y, tile_2);
     }
+    self.lock.lockUpgrade();
+    defer self.lock.unlock();
+
+    self.flipped = !self.flipped;
 }
 
 fn getBoard(self: *Self) Board {
