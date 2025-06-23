@@ -725,9 +725,9 @@ var dynamic_array_height_spinner_data: SpinnerData = .{
 pub const dynamic_array_xwrap_dropdown: Dropdown = .{
     .rect = .{
         .parent = &dynamic_array_options_box.rect,
-        .x = .{ .middle = 0 },
+        .x = .{ .left = 60 },
         .y = .{ .top = 80 },
-        .width = .{ .relative = -40 },
+        .width = .{ .relative = -80 },
         .height = .{ .amount = 30 },
     },
     .contents = Wrap,
@@ -743,9 +743,9 @@ var dynamic_array_xwrap_dropdown_data: DropdownData = .{
 pub const dynamic_array_ywrap_dropdown: Dropdown = .{
     .rect = .{
         .parent = &dynamic_array_options_box.rect,
-        .x = .{ .middle = 0 },
+        .x = .{ .left = 60 },
         .y = .{ .top = 120 },
-        .width = .{ .relative = -40 },
+        .width = .{ .relative = -80 },
         .height = .{ .amount = 30 },
     },
     .contents = Wrap,

@@ -304,6 +304,10 @@ pub fn main() !void {
                             if (ui.drawDropdown(ui.dynamic_array_xwrap_dropdown)) {
                                 dynamic_array_game.setXWrap(ui.dynamic_array_xwrap_dropdown.getSelected());
                             }
+                            const x_wrap_rect = ui.dynamic_array_xwrap_dropdown.rect.rlRect();
+                            const y_wrap_rect = ui.dynamic_array_ywrap_dropdown.rect.rlRect();
+                            rl.drawText("X Wrap: ", @intFromFloat(x_wrap_rect.x - 43), @intFromFloat(x_wrap_rect.y + 10), 7, .dark_gray);
+                            rl.drawText("Y Wrap: ", @intFromFloat(y_wrap_rect.x - 43), @intFromFloat(y_wrap_rect.y + 10), 7, .dark_gray);
                         },
                         .Hashset => {
                             // hashset info/options
