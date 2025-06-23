@@ -18,7 +18,7 @@ ally: Allocator,
 x_wrap: Wrap = .Normal,
 y_wrap: Wrap = .Normal,
 
-const Wrap = enum { None, Normal, Inverted };
+pub const Wrap = enum { None, Normal, Inverted };
 
 const Self = @This();
 

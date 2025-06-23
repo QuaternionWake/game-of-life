@@ -8,6 +8,7 @@ const RlRect = rl.Rectangle;
 const Rect = @import("rect.zig");
 
 const GameType = @import("main.zig").GameType;
+const Wrap = @import("games/DynamicArray.zig").Wrap;
 
 pub const GuiElement = enum {
     Grid,
@@ -29,6 +30,8 @@ pub const GuiElement = enum {
 
     DynamicArrayWidthSpinner,
     DynamicArrayHeightSpinner,
+    DynamicArrayXWrapDropdown,
+    DynamicArrayYWrapDropdown,
 };
 
 pub var held_element: ?GuiElement = null;
@@ -632,7 +635,7 @@ pub const dynamic_array_options_box: Container = .{
         .x = .{ .middle = 0 },
         .y = .{ .top = 100 },
         .width = .{ .relative = -40 },
-        .height = .{ .amount = 80 },
+        .height = .{ .amount = 165 },
     },
     .title = "Options",
     .type = .GroupBox,
@@ -676,5 +679,41 @@ var dynamic_array_height_spinner_data: SpinnerData = .{
     .min = 1,
     .max = std.math.maxInt(i32),
     .value = 256,
+    .editing = false,
+};
+
+pub const dynamic_array_xwrap_dropdown: Dropdown = .{
+    .rect = .{
+        .parent = &dynamic_array_options_box.rect,
+        .x = .{ .middle = 0 },
+        .y = .{ .top = 80 },
+        .width = .{ .relative = -40 },
+        .height = .{ .amount = 30 },
+    },
+    .contents = Wrap,
+    .data = &dynamic_array_xwrap_dropdown_data,
+    .element = .DynamicArrayXWrapDropdown,
+};
+
+var dynamic_array_xwrap_dropdown_data: DropdownData = .{
+    .selected = @intFromEnum(Wrap.Normal),
+    .editing = false,
+};
+
+pub const dynamic_array_ywrap_dropdown: Dropdown = .{
+    .rect = .{
+        .parent = &dynamic_array_options_box.rect,
+        .x = .{ .middle = 0 },
+        .y = .{ .top = 120 },
+        .width = .{ .relative = -40 },
+        .height = .{ .amount = 30 },
+    },
+    .contents = Wrap,
+    .data = &dynamic_array_ywrap_dropdown_data,
+    .element = .DynamicArrayYWrapDropdown,
+};
+
+var dynamic_array_ywrap_dropdown_data: DropdownData = .{
+    .selected = @intFromEnum(Wrap.Normal),
     .editing = false,
 };
