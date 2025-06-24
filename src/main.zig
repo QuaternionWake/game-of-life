@@ -16,7 +16,8 @@ const StaticArrayGame = @import("games/StaticArray.zig");
 const DynamicArrayGame = @import("games/DynamicArray.zig");
 const HashsetGame = @import("games/Hashset.zig");
 const ui = @import("ui.zig");
-const pattern = @import("pattern.zig");
+const Pattern = @import("Pattern.zig");
+const PatternList = @import("PatternList.zig");
 const GameThread = @import("GameThread.zig");
 
 var screen_size: Vec2 = .init(800, 500);
@@ -58,10 +59,10 @@ pub fn main() !void {
 
     var gol = static_array_game.gol();
 
-    var clipboard = try pattern.Pattern.init("", &.{}, ally);
+    var clipboard = try Pattern.init("", &.{}, ally);
     defer clipboard.deinit();
 
-    const patterns = try pattern.PatternList.init(ally);
+    const patterns = try PatternList.init(ally);
     defer patterns.deinit();
 
     var debug_menu: bool = false;
