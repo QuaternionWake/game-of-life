@@ -19,6 +19,7 @@ const ui = @import("ui.zig");
 const Pattern = @import("Pattern.zig");
 const PatternList = @import("PatternList.zig");
 const GameThread = @import("GameThread.zig");
+const file_formats = @import("file-formats.zig");
 
 var screen_size: Vec2 = .init(800, 500);
 
@@ -208,6 +209,28 @@ pub fn main() !void {
 
         if (rl.isKeyPressed(.f11)) {
             rl.toggleFullscreen();
+        }
+
+        // VERY TEMPORARY
+        if (rl.isKeyPressed(.s)) {
+            const path = std.fs.getAppDataDir(ally, "game-of-life") catch unreachable;
+            defer ally.free(path);
+            const file = std.fs.createFileAbsolute(path, .{}) catch unreachable;
+            defer file.close();
+            const zon = file_formats.toZon(clipboard, ally) catch unreachable;
+            defer ally.free(zon);
+            _ = file.write(zon) catch unreachable;
+        }
+
+        if (rl.isKeyPressed(.l)) blk: {
+            const path = std.fs.getAppDataDir(ally, "game-of-life") catch unreachable;
+            defer ally.free(path);
+            const file = std.fs.openFileAbsolute(path, .{}) catch break :blk;
+            defer file.close();
+            const zon = file.readToEndAllocOptions(ally, math.maxInt(usize), null, @alignOf(u8), 0) catch unreachable;
+            defer ally.free(zon);
+            clipboard.deinit();
+            clipboard = file_formats.fromZon(zon, ally) catch unreachable;
         }
 
         // Drawing
