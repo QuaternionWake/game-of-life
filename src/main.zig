@@ -307,6 +307,8 @@ pub fn main() !void {
                     const names_list = patterns.getNames(ally) catch break :blk;
                     defer names_list.deinit();
                     ui.drawListView(ui.pattern_list, names_list.items);
+                    _ = ui.drawTextInput(ui.pattern_name_input);
+                    _ = ui.drawButton(ui.save_pattern_button);
                 },
                 .GameTypes => {
                     switch (ui.game_type_dropdown.getSelected()) {

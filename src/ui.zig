@@ -25,6 +25,8 @@ pub const GuiElement = enum {
     GameSpeedSpinner,
 
     PatternList,
+    PatternNameInput,
+    SavePatternButton,
 
     GameTypeDropdown,
 
@@ -60,6 +62,8 @@ const settings_elements = .{
 
 const pattern_list_elements = .{
     pattern_list,
+    pattern_name_input,
+    save_pattern_button,
 };
 
 const game_type_elements = .{
@@ -203,6 +207,21 @@ pub fn drawListView(list: List, items: [][*:0]const u8) void {
         _ = rg.guiListViewEx(list.getRect(), items, &list.data.scroll, &active_inner, &focused_inner);
         rg.guiUnlock();
     }
+}
+
+/// Returns true when editing stops.
+pub fn drawTextInput(ti: TextInput) bool {
+    const previous_editing = ti.data.editing;
+    if (ti.element == previous_held_element or previous_held_element == null) {
+        if (rg.guiTextBox(ti.getRect(), ti.data.text_buffer, @intCast(ti.data.text_buffer.len - 1), ti.data.editing) != 0) {
+            ti.data.editing = !ti.data.editing;
+        }
+    } else {
+        rg.guiLock();
+        _ = rg.guiTextBox(ti.getRect(), ti.data.text_buffer, @intCast(ti.data.text_buffer.len - 1), ti.data.editing);
+        rg.guiUnlock();
+    }
+    return previous_editing and !ti.data.editing;
 }
 
 /// Returns true when value has changed
@@ -466,6 +485,29 @@ const DropdownData = struct {
     editing: bool = false,
 };
 
+const TextInput = struct {
+    rect: Rect,
+    data: *TextInputData,
+    element: GuiElement,
+
+    pub fn getRect(self: TextInput) RlRect {
+        return self.rect.rlRect();
+    }
+
+    pub fn containsPoint(self: TextInput, point: Vec2) bool {
+        return rl.checkCollisionPointRec(point, self.getRect());
+    }
+
+    pub fn getElement(self: TextInput) GuiElement {
+        return self.element;
+    }
+};
+
+const TextInputData = struct {
+    text_buffer: [:0]u8,
+    editing: bool,
+};
+
 pub const SidebarTabs = enum {
     Settings,
     Patterns,
@@ -598,6 +640,37 @@ pub const pattern_list: List = .{
 };
 
 var pattern_list_data: ListData = .{};
+
+pub const pattern_name_input: TextInput = .{
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .left = 20 },
+        .y = .{ .top = 310 },
+        .width = .{ .relative = -85 },
+        .height = .{ .amount = 25 },
+    },
+    .data = &pattern_name_input_data,
+    .element = .PatternNameInput,
+};
+
+var pattern_name_input_data: TextInputData = .{
+    .text_buffer = &pattern_name_buf,
+    .editing = false,
+};
+
+var pattern_name_buf: [32:0]u8 = .{0} ** 32;
+
+pub const save_pattern_button: Button = .{
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .right = -20 },
+        .y = .{ .top = 310 },
+        .width = .{ .amount = 40 },
+        .height = .{ .amount = 25 },
+    },
+    .text = "Save",
+    .element = .SavePatternButton,
+};
 
 pub const sidebar_tab_buttons: TabButtons = .{
     .rect = .{
