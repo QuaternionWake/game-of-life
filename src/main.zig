@@ -211,28 +211,6 @@ pub fn main() !void {
             rl.toggleFullscreen();
         }
 
-        // VERY TEMPORARY
-        if (rl.isKeyPressed(.s)) {
-            const path = std.fs.getAppDataDir(ally, "game-of-life") catch unreachable;
-            defer ally.free(path);
-            const file = std.fs.createFileAbsolute(path, .{}) catch unreachable;
-            defer file.close();
-            const zon = file_formats.toZon(clipboard, ally) catch unreachable;
-            defer ally.free(zon);
-            _ = file.write(zon) catch unreachable;
-        }
-
-        if (rl.isKeyPressed(.l)) blk: {
-            const path = std.fs.getAppDataDir(ally, "game-of-life") catch unreachable;
-            defer ally.free(path);
-            const file = std.fs.openFileAbsolute(path, .{}) catch break :blk;
-            defer file.close();
-            const zon = file.readToEndAllocOptions(ally, math.maxInt(usize), null, @alignOf(u8), 0) catch unreachable;
-            defer ally.free(zon);
-            clipboard.deinit();
-            clipboard = file_formats.fromZon(zon, ally) catch unreachable;
-        }
-
         // Drawing
         // -------
         rl.beginDrawing();
@@ -307,8 +285,27 @@ pub fn main() !void {
                     const names_list = patterns.getNames(ally) catch break :blk;
                     defer names_list.deinit();
                     ui.drawListView(ui.pattern_list, names_list.items);
-                    _ = ui.drawTextInput(ui.pattern_name_input);
-                    _ = ui.drawButton(ui.save_pattern_button);
+                    if (ui.drawTextInput(ui.pattern_name_input)) {
+                        const len = std.mem.indexOfSentinel(u8, 0, ui.pattern_name_input.data.text_buffer);
+                        clipboard.setName(ui.pattern_name_input.data.text_buffer[0..len]) catch {};
+                    }
+                    if (ui.drawButton(ui.save_pattern_button)) save: {
+                        if (clipboard.getNameWithoutSentinel().len == 0) break :save;
+                        var filename = List(u8).initCapacity(ally, clipboard.name.items.len + 4) catch break :save;
+                        defer filename.deinit();
+                        filename.appendSliceAssumeCapacity(clipboard.getNameWithoutSentinel());
+                        filename.appendSliceAssumeCapacity(".zon");
+                        const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :save;
+                        defer ally.free(path);
+                        std.fs.makeDirAbsolute(path) catch |err| if (err != error.PathAlreadyExists) break :save;
+                        var dir = std.fs.openDirAbsolute(path, .{}) catch break :save;
+                        defer dir.close();
+                        const file = dir.createFile(filename.items, .{}) catch break :save;
+                        defer file.close();
+                        const zon = file_formats.toZon(clipboard, ally) catch break :save;
+                        defer ally.free(zon);
+                        _ = file.write(zon) catch break :save;
+                    }
                 },
                 .GameTypes => {
                     switch (ui.game_type_dropdown.getSelected()) {

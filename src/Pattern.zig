@@ -41,6 +41,16 @@ pub fn setTiles(self: *Self, tiles: []const Tile) !void {
     try self.tiles.appendSlice(tiles);
 }
 
+pub fn getNameWithoutSentinel(self: Self) []u8 {
+    return self.name.items[0..(self.name.items.len - 1)];
+}
+
+pub fn setName(self: *Self, name: []const u8) !void {
+    self.name.clearRetainingCapacity();
+    try self.name.appendSlice(name);
+    try self.name.append(0);
+}
+
 pub const Orientation = struct {
     rotation: Rotation = .Zero,
     flipped: bool = false,
