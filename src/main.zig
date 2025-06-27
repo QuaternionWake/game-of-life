@@ -290,10 +290,10 @@ pub fn main() !void {
                         clipboard.setName(ui.pattern_name_input.data.text_buffer[0..len]) catch {};
                     }
                     if (ui.drawButton(ui.save_pattern_button)) save: {
-                        if (clipboard.getNameWithoutSentinel().len == 0) break :save;
-                        var filename = List(u8).initCapacity(ally, clipboard.name.items.len + 4) catch break :save;
+                        if (clipboard.name.len == 0) break :save;
+                        var filename = List(u8).initCapacity(ally, clipboard.name.len + 4) catch break :save;
                         defer filename.deinit();
-                        filename.appendSliceAssumeCapacity(clipboard.getNameWithoutSentinel());
+                        filename.appendSliceAssumeCapacity(clipboard.name);
                         filename.appendSliceAssumeCapacity(".zon");
                         const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :save;
                         defer ally.free(path);

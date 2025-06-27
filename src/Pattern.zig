@@ -1,35 +1,38 @@
 const std = @import("std");
 const List = std.ArrayList;
+
 const Allocator = std.mem.Allocator;
 
 const Tile = @import("GameOfLife.zig").Tile;
 
-name: List(u8),
-tiles: List(Tile),
+name: [:0]u8,
+tiles: []Tile,
 orientation: Orientation = .{},
+
+ally: Allocator,
 
 const Self = @This();
 
 pub fn init(name: []const u8, tiles: []const Tile, ally: Allocator) !Self {
-    var name_string = try List(u8).initCapacity(ally, name.len + 1);
-    name_string.appendSliceAssumeCapacity(name);
-    name_string.appendAssumeCapacity(0);
-    var tile_list = try List(Tile).initCapacity(ally, tiles.len);
-    tile_list.appendSliceAssumeCapacity(tiles);
+    const name_slice = try ally.allocSentinel(u8, name.len, 0);
+    @memcpy(name_slice, name);
+    const tile_slice = try ally.alloc(Tile, tiles.len);
+    @memcpy(tile_slice, tiles);
     return .{
-        .name = name_string,
-        .tiles = tile_list,
+        .name = name_slice,
+        .tiles = tile_slice,
+        .ally = ally,
     };
 }
 
 pub fn deinit(self: Self) void {
-    self.name.deinit();
-    self.tiles.deinit();
+    self.ally.free(self.name);
+    self.ally.free(self.tiles);
 }
 
 pub fn getTiles(self: Self, ally: Allocator) !List(Tile) {
-    var oriented_tiles = try List(Tile).initCapacity(ally, self.tiles.items.len);
-    for (self.tiles.items) |tile| {
+    var oriented_tiles = try List(Tile).initCapacity(ally, self.tiles.len);
+    for (self.tiles) |tile| {
         const oriented_tile = orientTile(tile, self.orientation);
         oriented_tiles.appendAssumeCapacity(oriented_tile);
     }
@@ -37,18 +40,15 @@ pub fn getTiles(self: Self, ally: Allocator) !List(Tile) {
 }
 
 pub fn setTiles(self: *Self, tiles: []const Tile) !void {
-    self.tiles.clearRetainingCapacity();
-    try self.tiles.appendSlice(tiles);
-}
-
-pub fn getNameWithoutSentinel(self: Self) []u8 {
-    return self.name.items[0..(self.name.items.len - 1)];
+    self.ally.free(self.tiles);
+    self.tiles = try self.ally.alloc(Tile, tiles.len);
+    @memcpy(self.tiles, tiles);
 }
 
 pub fn setName(self: *Self, name: []const u8) !void {
-    self.name.clearRetainingCapacity();
-    try self.name.appendSlice(name);
-    try self.name.append(0);
+    self.ally.free(self.name);
+    self.name = try self.ally.allocSentinel(u8, name.len, 0);
+    @memcpy(self.name, name);
 }
 
 pub const Orientation = struct {
@@ -120,8 +120,8 @@ pub const Slice = struct {
 
     pub fn fromPattern(pattern: Self) Slice {
         return .{
-            .name = pattern.name.items,
-            .tiles = pattern.tiles.items,
+            .name = pattern.name,
+            .tiles = pattern.tiles,
         };
     }
 };

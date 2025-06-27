@@ -32,7 +32,7 @@ pub fn deinit(self: Self) void {
 pub fn getNames(self: Self, ally: Allocator) !List([*:0]const u8) {
     var list = try List([*:0]const u8).initCapacity(ally, self.patterns.items.len);
     for (self.patterns.items) |pat| {
-        list.appendAssumeCapacity(@ptrCast(pat.name.items));
+        list.appendAssumeCapacity(@ptrCast(pat.name));
     }
     return list;
 }
