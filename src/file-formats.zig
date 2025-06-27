@@ -8,6 +8,8 @@ const Pattern = @import("Pattern.zig");
 // ----------------
 pub fn fromZon(str: [:0]const u8, ally: Allocator) !Pattern {
     const slice = try std.zon.parse.fromSlice(Pattern.Slice, ally, str, null, .{});
+    defer ally.free(slice.name);
+    defer ally.free(slice.tiles);
     return slice.toPattern(ally);
 }
 

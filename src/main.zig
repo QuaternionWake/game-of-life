@@ -306,6 +306,26 @@ pub fn main() !void {
                         defer ally.free(zon);
                         _ = file.write(zon) catch break :save;
                     }
+                    _ = ui.drawTextInput(ui.pattern_load_path_input);
+                    if (ui.drawButton(ui.load_pattern_button)) load: {
+                        const len = std.mem.indexOfSentinel(u8, 0, ui.pattern_load_path_input.data.text_buffer);
+                        if (len == 0) break :load;
+                        var filename = List(u8).initCapacity(ally, len + 4) catch break :load;
+                        defer filename.deinit();
+                        filename.appendSliceAssumeCapacity(ui.pattern_load_path_input.data.text_buffer[0..len]);
+                        filename.appendSliceAssumeCapacity(".zon");
+                        const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :load;
+                        defer ally.free(path);
+                        var dir = std.fs.openDirAbsolute(path, .{}) catch break :load;
+                        defer dir.close();
+                        const file = dir.openFile(filename.items, .{}) catch break :load;
+                        defer file.close();
+                        const zon = file.readToEndAllocOptions(ally, math.maxInt(usize), null, @alignOf(u8), 0) catch break :load;
+                        defer ally.free(zon);
+                        const new_pat = file_formats.fromZon(zon, ally) catch break :load;
+                        clipboard.deinit();
+                        clipboard = new_pat;
+                    }
                 },
                 .GameTypes => {
                     switch (ui.game_type_dropdown.getSelected()) {

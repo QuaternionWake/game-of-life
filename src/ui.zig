@@ -27,6 +27,8 @@ pub const GuiElement = enum {
     PatternList,
     PatternNameInput,
     SavePatternButton,
+    LoadPathInput,
+    LoadPatternButton,
 
     GameTypeDropdown,
 
@@ -64,6 +66,8 @@ const pattern_list_elements = .{
     pattern_list,
     pattern_name_input,
     save_pattern_button,
+    pattern_load_path_input,
+    load_pattern_button,
 };
 
 const game_type_elements = .{
@@ -670,6 +674,37 @@ pub const save_pattern_button: Button = .{
     },
     .text = "Save",
     .element = .SavePatternButton,
+};
+
+pub const pattern_load_path_input: TextInput = .{
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .left = 20 },
+        .y = .{ .top = 340 },
+        .width = .{ .relative = -85 },
+        .height = .{ .amount = 25 },
+    },
+    .data = &pattern_load_path_input_data,
+    .element = .LoadPathInput,
+};
+
+var pattern_load_path_input_data: TextInputData = .{
+    .text_buffer = &pattern_load_path_buf,
+    .editing = false,
+};
+
+var pattern_load_path_buf: [32:0]u8 = .{0} ** 32;
+
+pub const load_pattern_button: Button = .{
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .right = -20 },
+        .y = .{ .top = 340 },
+        .width = .{ .amount = 40 },
+        .height = .{ .amount = 25 },
+    },
+    .text = "Load",
+    .element = .LoadPatternButton,
 };
 
 pub const sidebar_tab_buttons: TabButtons = .{
