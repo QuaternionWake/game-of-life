@@ -9,6 +9,7 @@ const Rect = @import("rect.zig");
 
 const GameType = @import("main.zig").GameType;
 const Wrap = @import("games/DynamicArray.zig").Wrap;
+const LoadableFormats = @import("file-formats.zig").LoadableFormats;
 
 pub const GuiElement = enum {
     Grid,
@@ -28,6 +29,7 @@ pub const GuiElement = enum {
     PatternNameInput,
     SavePatternButton,
     LoadPathInput,
+    LoadPatternExtension,
     LoadPatternButton,
 
     GameTypeDropdown,
@@ -67,6 +69,7 @@ const pattern_list_elements = .{
     pattern_name_input,
     save_pattern_button,
     pattern_load_path_input,
+    load_pattern_extension_dropdown,
     load_pattern_button,
 };
 
@@ -681,7 +684,7 @@ pub const pattern_load_path_input: TextInput = .{
         .parent = &sidebar.rect,
         .x = .{ .left = 20 },
         .y = .{ .top = 340 },
-        .width = .{ .relative = -85 },
+        .width = .{ .relative = -150 },
         .height = .{ .amount = 25 },
     },
     .data = &pattern_load_path_input_data,
@@ -694,6 +697,21 @@ var pattern_load_path_input_data: TextInputData = .{
 };
 
 var pattern_load_path_buf: [32:0]u8 = .{0} ** 32;
+
+pub const load_pattern_extension_dropdown: Dropdown = .{
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .right = -65 },
+        .y = .{ .top = 340 },
+        .width = .{ .amount = 60 },
+        .height = .{ .amount = 25 },
+    },
+    .contents = LoadableFormats,
+    .data = &load_pattern_extension_dropdown_data,
+    .element = .LoadPatternExtension,
+};
+
+var load_pattern_extension_dropdown_data: DropdownData = .{};
 
 pub const load_pattern_button: Button = .{
     .rect = .{
