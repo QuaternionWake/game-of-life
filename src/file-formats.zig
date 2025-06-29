@@ -11,11 +11,20 @@ pub const LoadableFormats = enum {
     Zon,
     Rle,
 
-    pub fn getString(self: LoadableFormats) []const u8 {
+    pub fn toString(self: LoadableFormats) []const u8 {
         return switch (self) {
             .Zon => ".zon",
             .Rle => ".rle",
         };
+    }
+
+    pub fn fromString(str: []const u8) ?LoadableFormats {
+        return if (mem.eql(u8, str, ".zon"))
+            .Zon
+        else if (mem.eql(u8, str, ".rle"))
+            .Rle
+        else
+            null;
     }
 };
 

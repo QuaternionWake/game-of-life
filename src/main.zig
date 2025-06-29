@@ -315,7 +315,7 @@ pub fn main() !void {
                         var filename = List(u8).initCapacity(ally, len) catch break :load;
                         defer filename.deinit();
                         filename.appendSliceAssumeCapacity(ui.pattern_load_path_input.data.text_buffer[0..len]);
-                        filename.appendSlice(format.getString()) catch break :load;
+                        filename.appendSlice(format.toString()) catch break :load;
                         const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :load;
                         defer ally.free(path);
                         var dir = std.fs.openDirAbsolute(path, .{}) catch break :load;

@@ -2,6 +2,7 @@ const std = @import("std");
 const List = std.ArrayList;
 const Allocator = std.mem.Allocator;
 
+const file_formats = @import("file-formats.zig");
 const Tile = @import("GameOfLife.zig").Tile;
 const Pattern = @import("Pattern.zig");
 
@@ -16,6 +17,33 @@ pub fn init(ally: Allocator) !Self {
     for (patterns) |pat| {
         pattern_list.appendAssumeCapacity(try pat.toPattern(ally));
     }
+
+    blk: {
+        const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :blk;
+        defer ally.free(path);
+        var dir = std.fs.openDirAbsolute(path, .{ .iterate = true }) catch break :blk;
+        defer dir.close();
+        var iter = dir.iterateAssumeFirstIteration();
+        while (iter.next() catch null) |entry| {
+            if (entry.kind != .file) continue;
+
+            const externsion_start = std.mem.lastIndexOfScalar(u8, entry.name, '.') orelse continue;
+            const file_type = file_formats.LoadableFormats.fromString(entry.name[externsion_start..]) orelse continue;
+            const file = dir.openFile(entry.name, .{}) catch continue;
+            defer file.close();
+            const str = file.readToEndAllocOptions(ally, std.math.maxInt(usize), null, @alignOf(u8), 0) catch continue;
+            defer ally.free(str);
+            var pattern = switch (file_type) {
+                .Zon => file_formats.fromZon(str, ally) catch continue,
+                .Rle => file_formats.fromRle(str, ally) catch continue,
+            };
+            if (pattern.name.len == 0) {
+                pattern.setName(entry.name) catch continue;
+            }
+            pattern_list.append(pattern) catch continue;
+        }
+    }
+
     return .{
         .patterns = pattern_list,
         .allocator = ally,
