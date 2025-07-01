@@ -331,6 +331,12 @@ pub fn main() !void {
                         clipboard.deinit();
                         clipboard = new_pat;
                     }
+                    if (ui.drawButton(ui.load_from_clipboard_button)) clip: {
+                        const str = rl.getClipboardText();
+                        const new_pat = file_formats.fromRle(str, ally) catch break :clip;
+                        clipboard.deinit();
+                        clipboard = new_pat;
+                    }
                 },
                 .GameTypes => {
                     switch (ui.game_type_dropdown.getSelected()) {

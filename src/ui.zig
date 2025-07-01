@@ -31,6 +31,7 @@ pub const GuiElement = enum {
     LoadPathInput,
     LoadPatternExtension,
     LoadPatternButton,
+    LoadFromClipboardButton,
 
     GameTypeDropdown,
 
@@ -71,6 +72,7 @@ const pattern_list_elements = .{
     pattern_load_path_input,
     load_pattern_extension_dropdown,
     load_pattern_button,
+    load_from_clipboard_button,
 };
 
 const game_type_elements = .{
@@ -723,6 +725,18 @@ pub const load_pattern_button: Button = .{
     },
     .text = "Load",
     .element = .LoadPatternButton,
+};
+
+pub const load_from_clipboard_button: Button = .{
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .middle = 0 },
+        .y = .{ .top = 380 },
+        .width = .{ .relative = -40 },
+        .height = .{ .amount = 40 },
+    },
+    .text = "Load from clipboard",
+    .element = .LoadFromClipboardButton,
 };
 
 pub const sidebar_tab_buttons: TabButtons = .{
