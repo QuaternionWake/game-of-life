@@ -90,6 +90,8 @@ const dynamic_game_elemnts = .{
 
 const hashset_game_elements = .{};
 
+const hashfast_game_elements = .{};
+
 pub fn grabElement() void {
     previous_held_element = held_element;
     const mouse_pos = rl.getMousePosition();
@@ -133,6 +135,12 @@ pub fn grabElement() void {
                     }
                 },
                 .Hashset => inline for (hashset_game_elements) |e2| {
+                    if (e2.containsPoint(mouse_pos)) {
+                        hovered_element = e2.getElement();
+                        break;
+                    }
+                },
+                .@"Hashset (faster (sometimes))" => inline for (hashfast_game_elements) |e2| {
                     if (e2.containsPoint(mouse_pos)) {
                         hovered_element = e2.getElement();
                         break;

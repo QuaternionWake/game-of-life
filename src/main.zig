@@ -15,6 +15,7 @@ const Tile = Gol.Tile;
 const StaticArrayGame = @import("games/StaticArray.zig");
 const DynamicArrayGame = @import("games/DynamicArray.zig");
 const HashsetGame = @import("games/Hashset.zig");
+const HashfastGame = @import("games/HashsetFaster.zig");
 const ui = @import("ui.zig");
 const Pattern = @import("Pattern.zig");
 const PatternList = @import("PatternList.zig");
@@ -23,7 +24,7 @@ const file_formats = @import("file-formats.zig");
 
 var screen_size: Vec2 = .init(800, 500);
 
-pub const GameType = enum { @"Static Array", @"Dynamic Array", Hashset };
+pub const GameType = enum { @"Static Array", @"Dynamic Array", Hashset, @"Hashset (faster (sometimes))" };
 
 pub fn main() !void {
     rl.initWindow(@intFromFloat(screen_size.x), @intFromFloat(screen_size.y), "Game of Life");
@@ -57,6 +58,8 @@ pub fn main() !void {
     defer dynamic_array_game.deinit();
     var hashset_game = HashsetGame.init(rng, ally);
     defer hashset_game.deinit();
+    var hashfast_game = HashfastGame.init(rng, ally);
+    defer hashfast_game.deinit();
 
     var gol = static_array_game.gol();
 
@@ -366,6 +369,9 @@ pub fn main() !void {
                         .Hashset => {
                             // hashset info/options
                         },
+                        .@"Hashset (faster (sometimes))" => {
+                            // woohoo
+                        },
                     }
 
                     if (ui.drawDropdown(ui.game_type_dropdown)) {
@@ -373,6 +379,7 @@ pub fn main() !void {
                             .@"Static Array" => static_array_game.gol(),
                             .@"Dynamic Array" => dynamic_array_game.gol(),
                             .Hashset => hashset_game.gol(),
+                            .@"Hashset (faster (sometimes))" => hashfast_game.gol(),
                         };
                         game_thread.message(.{ .change_game = gol });
                     }
