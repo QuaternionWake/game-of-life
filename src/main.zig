@@ -265,9 +265,9 @@ pub fn main() !void {
                         if (ui.drawButton(ui.step_button)) game_thread.message(.{ .step = {} });
                     } else {
                         if (ui.drawButton(ui.pause_button)) game_thread.message(.{ .pause = {} });
-                        rg.guiSetState(@intFromEnum(rg.GuiState.state_disabled));
+                        rg.setState(@intFromEnum(rg.State.disabled));
                         if (ui.drawButton(ui.step_button)) game_thread.message(.{ .step = {} });
-                        rg.guiSetState(@intFromEnum(rg.GuiState.state_normal));
+                        rg.setState(@intFromEnum(rg.State.normal));
                     }
 
                     ui.drawContainer(ui.game_speed_box);

@@ -164,14 +164,14 @@ pub fn grabElement() void {
 /// Returns true when clicked
 pub fn drawButton(b: Button) bool {
     if (b.element == previous_held_element) {
-        return rg.guiButton(b.getRect(), b.text) != 0;
+        return rg.button(b.getRect(), b.text);
     } else if (previous_held_element == null) {
-        _ = rg.guiButton(b.getRect(), b.text);
+        _ = rg.button(b.getRect(), b.text);
         return false;
     } else {
-        rg.guiLock();
-        _ = rg.guiButton(b.getRect(), b.text);
-        rg.guiUnlock();
+        rg.lock();
+        _ = rg.button(b.getRect(), b.text);
+        rg.unlock();
         return false;
     }
 }
@@ -179,10 +179,10 @@ pub fn drawButton(b: Button) bool {
 pub fn drawContainer(c: Container) void {
     switch (c.type) {
         .Panel => {
-            _ = rg.guiPanel(c.getRect(), c.title);
+            _ = rg.panel(c.getRect(), c.title);
         },
         .GroupBox => {
-            _ = rg.guiGroupBox(c.getRect(), c.title);
+            _ = rg.groupBox(c.getRect(), c.title);
         },
     }
 }
@@ -194,15 +194,15 @@ pub fn drawTabButtons(tb: TabButtons) void {
 
     inline for (fields) |field| {
         if (@as(tb.tabs, @enumFromInt(field.value)).getGuiElement() == previous_held_element) {
-            if (rg.guiButton(rect, field.name) != 0) {
+            if (rg.button(rect, field.name)) {
                 sidebar_tab = @enumFromInt(field.value);
             }
         } else if (previous_held_element == null) {
-            _ = rg.guiButton(rect, field.name);
+            _ = rg.button(rect, field.name);
         } else {
-            rg.guiLock();
-            _ = rg.guiButton(rect, field.name);
-            rg.guiUnlock();
+            rg.lock();
+            _ = rg.button(rect, field.name);
+            rg.unlock();
         }
 
         rect.x += tb.offset.x;
@@ -215,14 +215,14 @@ pub fn drawListView(list: List, items: [][*:0]const u8) void {
     var focused_inner: i32 = if (list.data.focused) |f| @intCast(f) else -1;
 
     if (list.element == previous_held_element or previous_held_element == null) {
-        _ = rg.guiListViewEx(list.getRect(), items, &list.data.scroll, &active_inner, &focused_inner);
+        _ = rg.listViewEx(list.getRect(), items, &list.data.scroll, &active_inner, &focused_inner);
 
         list.data.active = if (active_inner != -1) @intCast(active_inner) else null;
         list.data.focused = if (focused_inner != -1) @intCast(focused_inner) else null;
     } else {
-        rg.guiLock();
-        _ = rg.guiListViewEx(list.getRect(), items, &list.data.scroll, &active_inner, &focused_inner);
-        rg.guiUnlock();
+        rg.lock();
+        _ = rg.listViewEx(list.getRect(), items, &list.data.scroll, &active_inner, &focused_inner);
+        rg.unlock();
     }
 }
 
@@ -230,13 +230,13 @@ pub fn drawListView(list: List, items: [][*:0]const u8) void {
 pub fn drawTextInput(ti: TextInput) bool {
     const previous_editing = ti.data.editing;
     if (ti.element == previous_held_element or previous_held_element == null) {
-        if (rg.guiTextBox(ti.getRect(), ti.data.text_buffer, @intCast(ti.data.text_buffer.len - 1), ti.data.editing) != 0) {
+        if (rg.textBox(ti.getRect(), ti.data.text_buffer, @intCast(ti.data.text_buffer.len - 1), ti.data.editing)) {
             ti.data.editing = !ti.data.editing;
         }
     } else {
-        rg.guiLock();
-        _ = rg.guiTextBox(ti.getRect(), ti.data.text_buffer, @intCast(ti.data.text_buffer.len - 1), ti.data.editing);
-        rg.guiUnlock();
+        rg.lock();
+        _ = rg.textBox(ti.getRect(), ti.data.text_buffer, @intCast(ti.data.text_buffer.len - 1), ti.data.editing);
+        rg.unlock();
     }
     return previous_editing and !ti.data.editing;
 }
@@ -245,11 +245,11 @@ pub fn drawTextInput(ti: TextInput) bool {
 pub fn drawSlider(s: Slider) bool {
     const old_value = s.data.value;
     if (s.element == previous_held_element or previous_held_element == null) {
-        _ = rg.guiSlider(s.getRect(), s.text_left, s.text_right, &s.data.value, s.data.min, s.data.max);
+        _ = rg.slider(s.getRect(), s.text_left, s.text_right, &s.data.value, s.data.min, s.data.max);
     } else {
-        rg.guiLock();
-        _ = rg.guiSlider(s.getRect(), s.text_left, s.text_right, &s.data.value, s.data.min, s.data.max);
-        rg.guiUnlock();
+        rg.lock();
+        _ = rg.slider(s.getRect(), s.text_left, s.text_right, &s.data.value, s.data.min, s.data.max);
+        rg.unlock();
     }
     return old_value != s.data.value;
 }
@@ -260,21 +260,21 @@ pub fn drawSpinner(sb: Spinner, return_on_change: bool) bool {
     const old_value = sb.data.value;
     var stopped_editing = false;
     if (sb.element == previous_held_element) {
-        if (rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.min, sb.data.max, sb.data.editing) != 0) {
+        if (rg.spinner(sb.getRect(), sb.text, &sb.data.value, sb.data.min, sb.data.max, sb.data.editing) != 0) {
             sb.data.editing = !sb.data.editing;
             stopped_editing = !sb.data.editing;
         }
     } else if (previous_held_element == null) {
         // giving it val for min and max both prevents it form editing the value and from drawing
         // the wrong, edited value for one frame
-        if (rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.value, sb.data.value, sb.data.editing) != 0) {
+        if (rg.spinner(sb.getRect(), sb.text, &sb.data.value, sb.data.value, sb.data.value, sb.data.editing) != 0) {
             sb.data.editing = !sb.data.editing;
             stopped_editing = !sb.data.editing;
         }
     } else {
-        rg.guiLock();
-        _ = rg.guiSpinner(sb.getRect(), sb.text, &sb.data.value, sb.data.min, sb.data.max, sb.data.editing);
-        rg.guiUnlock();
+        rg.lock();
+        _ = rg.spinner(sb.getRect(), sb.text, &sb.data.value, sb.data.min, sb.data.max, sb.data.editing);
+        rg.unlock();
     }
     if (return_on_change) {
         return old_value != sb.data.value;
@@ -305,16 +305,16 @@ pub fn drawDropdown(d: Dropdown) bool {
     var selected_idx: i32 = @intCast(d.data.selected);
 
     if (d.element == previous_held_element) {
-        _ = rg.guiDropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing);
+        _ = rg.dropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing);
         if (rl.checkCollisionPointRec(rl.getMousePosition(), d.getRect()) and rl.isMouseButtonReleased(.left)) {
             d.data.editing = !d.data.editing;
         }
     } else if (previous_held_element == null) {
-        _ = rg.guiDropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing);
+        _ = rg.dropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing);
     } else {
-        rg.guiLock();
-        _ = rg.guiDropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing);
-        rg.guiUnlock();
+        rg.lock();
+        _ = rg.dropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing);
+        rg.unlock();
     }
 
     if (selected_idx != d.data.selected) {
@@ -480,7 +480,7 @@ const Dropdown = struct {
     pub fn containsPoint(self: Dropdown, point: Vec2) bool {
         var rect = self.getRect();
         if (self.data.editing) {
-            rect.height += @floatFromInt(rg.guiGetStyle(.dropdownbox, rg.GuiDefaultProperty.text_spacing));
+            rect.height += @floatFromInt(rg.getStyle(.dropdownbox, .{ .default = .text_spacing }));
             const len = std.meta.fields(self.contents).len;
             rect.height *= len + 1;
         }
