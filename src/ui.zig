@@ -41,6 +41,12 @@ pub const GuiElement = enum {
     DynamicArrayYWrapDropdown,
 };
 
+pub const SidebarTabs = enum {
+    Settings,
+    Patterns,
+    GameTypes,
+};
+
 pub var held_element: ?GuiElement = null;
 pub var previous_held_element: ?GuiElement = null;
 pub var hovered_element: GuiElement = .Grid;
@@ -122,27 +128,27 @@ pub fn grabElement() void {
             }
         } else {
             switch (game_type_dropdown.getSelected()) {
-                .@"Static Array" => inline for (static_game_elements) |e2| {
-                    if (e2.containsPoint(mouse_pos)) {
-                        hovered_element = e2.element;
+                .@"Static Array" => inline for (static_game_elements) |e| {
+                    if (e.containsPoint(mouse_pos)) {
+                        hovered_element = e.element;
                         break;
                     }
                 },
-                .@"Dynamic Array" => inline for (dynamic_game_elemnts) |e2| {
-                    if (e2.containsPoint(mouse_pos)) {
-                        hovered_element = e2.element;
+                .@"Dynamic Array" => inline for (dynamic_game_elemnts) |e| {
+                    if (e.containsPoint(mouse_pos)) {
+                        hovered_element = e.element;
                         break;
                     }
                 },
-                .Hashset => inline for (hashset_game_elements) |e2| {
-                    if (e2.containsPoint(mouse_pos)) {
-                        hovered_element = e2.element;
+                .Hashset => inline for (hashset_game_elements) |e| {
+                    if (e.containsPoint(mouse_pos)) {
+                        hovered_element = e.element;
                         break;
                     }
                 },
-                .@"Hashset (faster (sometimes))" => inline for (hashfast_game_elements) |e2| {
-                    if (e2.containsPoint(mouse_pos)) {
-                        hovered_element = e2.element;
+                .@"Hashset (faster (sometimes))" => inline for (hashfast_game_elements) |e| {
+                    if (e.containsPoint(mouse_pos)) {
+                        hovered_element = e.element;
                         break;
                     }
                 },
@@ -260,28 +266,28 @@ pub fn drawSlider(s: Slider) bool {
 
 /// If `return_on_change` is true - retruns true whenever value changes.
 /// Otherwise, returns true when editing is finished.
-pub fn drawSpinner(sb: Spinner, return_on_change: bool) bool {
-    const old_value = sb.data.value;
+pub fn drawSpinner(s: Spinner, return_on_change: bool) bool {
+    const old_value = s.data.value;
     var stopped_editing = false;
-    if (sb.element == previous_held_element) {
-        if (rg.spinner(sb.getRect(), sb.text, &sb.data.value, sb.data.min, sb.data.max, sb.data.editing) != 0) {
-            sb.data.editing = !sb.data.editing;
-            stopped_editing = !sb.data.editing;
+    if (s.element == previous_held_element) {
+        if (rg.spinner(s.getRect(), s.text, &s.data.value, s.data.min, s.data.max, s.data.editing) != 0) {
+            s.data.editing = !s.data.editing;
+            stopped_editing = !s.data.editing;
         }
     } else if (previous_held_element == null) {
         // giving it val for min and max both prevents it form editing the value and from drawing
         // the wrong, edited value for one frame
-        if (rg.spinner(sb.getRect(), sb.text, &sb.data.value, sb.data.value, sb.data.value, sb.data.editing) != 0) {
-            sb.data.editing = !sb.data.editing;
-            stopped_editing = !sb.data.editing;
+        if (rg.spinner(s.getRect(), s.text, &s.data.value, s.data.value, s.data.value, s.data.editing) != 0) {
+            s.data.editing = !s.data.editing;
+            stopped_editing = !s.data.editing;
         }
     } else {
         rg.lock();
-        _ = rg.spinner(sb.getRect(), sb.text, &sb.data.value, sb.data.min, sb.data.max, sb.data.editing);
+        _ = rg.spinner(s.getRect(), s.text, &s.data.value, s.data.min, s.data.max, s.data.editing);
         rg.unlock();
     }
     if (return_on_change) {
-        return old_value != sb.data.value;
+        return old_value != s.data.value;
     } else {
         return stopped_editing;
     }
@@ -496,15 +502,6 @@ const TextInput = struct {
 const TextInputData = struct {
     text_buffer: [:0]u8,
     editing: bool,
-};
-
-pub const SidebarTabs = enum {
-    Settings,
-    Patterns,
-    GameTypes,
-    pub fn getGuiElement(_: SidebarTabs) GuiElement {
-        return .SidebarTabButtons;
-    }
 };
 
 // dummy struct for consistency
