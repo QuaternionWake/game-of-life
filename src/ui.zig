@@ -451,7 +451,7 @@ const SpinnerData = struct {
     min: i32,
     max: i32,
     value: i32,
-    editing: bool,
+    editing: bool = false,
 };
 
 const Dropdown = struct {
@@ -501,7 +501,7 @@ const TextInput = struct {
 
 const TextInputData = struct {
     text_buffer: [:0]u8,
-    editing: bool,
+    editing: bool = false,
 };
 
 // dummy struct for consistency
@@ -640,7 +640,6 @@ pub const pattern_name_input: TextInput = .{
 
 var pattern_name_input_data: TextInputData = .{
     .text_buffer = &pattern_name_buf,
-    .editing = false,
 };
 
 var pattern_name_buf: [32:0]u8 = .{0} ** 32;
@@ -671,7 +670,6 @@ pub const pattern_load_path_input: TextInput = .{
 
 var pattern_load_path_input_data: TextInputData = .{
     .text_buffer = &pattern_load_path_buf,
-    .editing = false,
 };
 
 var pattern_load_path_buf: [32:0]u8 = .{0} ** 32;
@@ -853,7 +851,6 @@ pub const dynamic_array_xwrap_dropdown: Dropdown = .{
 
 var dynamic_array_xwrap_dropdown_data: DropdownData = .{
     .selected = @intFromEnum(Wrap.Normal),
-    .editing = false,
 };
 
 pub const dynamic_array_ywrap_dropdown: Dropdown = .{
@@ -871,5 +868,4 @@ pub const dynamic_array_ywrap_dropdown: Dropdown = .{
 
 var dynamic_array_ywrap_dropdown_data: DropdownData = .{
     .selected = @intFromEnum(Wrap.Normal),
-    .editing = false,
 };
