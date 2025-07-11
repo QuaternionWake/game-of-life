@@ -100,58 +100,17 @@ const hashfast_game_elements = .{};
 
 pub fn grabElement() void {
     previous_held_element = held_element;
-    const mouse_pos = rl.getMousePosition();
-    inline for (top_level_elements) |e| {
-        if (e.containsPoint(mouse_pos)) {
-            hovered_element = e.element;
-            break;
-        }
-    }
+    _ = grabElementGroup(top_level_elements);
 
     switch (sidebar_tab) {
-        .Settings => inline for (settings_elements) |e| {
-            if (e.containsPoint(mouse_pos)) {
-                hovered_element = e.element;
-                break;
-            }
-        },
-        .Patterns => inline for (pattern_list_elements) |e| {
-            if (e.containsPoint(mouse_pos)) {
-                hovered_element = e.element;
-                break;
-            }
-        },
-        .GameTypes => inline for (game_type_elements) |e| {
-            if (e.containsPoint(mouse_pos)) {
-                hovered_element = e.element;
-                break;
-            }
-        } else {
+        .Settings => _ = grabElementGroup(settings_elements),
+        .Patterns => _ = grabElementGroup(pattern_list_elements),
+        .GameTypes => if (!grabElementGroup(game_type_elements)) {
             switch (game_type_dropdown.getSelected()) {
-                .@"Static Array" => inline for (static_game_elements) |e| {
-                    if (e.containsPoint(mouse_pos)) {
-                        hovered_element = e.element;
-                        break;
-                    }
-                },
-                .@"Dynamic Array" => inline for (dynamic_game_elemnts) |e| {
-                    if (e.containsPoint(mouse_pos)) {
-                        hovered_element = e.element;
-                        break;
-                    }
-                },
-                .Hashset => inline for (hashset_game_elements) |e| {
-                    if (e.containsPoint(mouse_pos)) {
-                        hovered_element = e.element;
-                        break;
-                    }
-                },
-                .@"Hashset (faster (sometimes))" => inline for (hashfast_game_elements) |e| {
-                    if (e.containsPoint(mouse_pos)) {
-                        hovered_element = e.element;
-                        break;
-                    }
-                },
+                .@"Static Array" => _ = grabElementGroup(static_game_elements),
+                .@"Dynamic Array" => _ = grabElementGroup(dynamic_game_elemnts),
+                .Hashset => _ = grabElementGroup(hashset_game_elements),
+                .@"Hashset (faster (sometimes))" => _ = grabElementGroup(hashfast_game_elements),
             }
         },
     }
@@ -165,6 +124,17 @@ pub fn grabElement() void {
     } else {
         held_element = null;
     }
+}
+
+fn grabElementGroup(elements: anytype) bool {
+    const mouse_pos = rl.getMousePosition();
+    inline for (elements) |e| {
+        if (e.containsPoint(mouse_pos)) {
+            hovered_element = e.element;
+            return true;
+        }
+    }
+    return false;
 }
 
 pub fn canGrab(e: anytype) bool {
