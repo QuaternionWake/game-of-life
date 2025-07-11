@@ -97,7 +97,7 @@ pub fn grabElement() void {
     const mouse_pos = rl.getMousePosition();
     inline for (top_level_elements) |e| {
         if (e.containsPoint(mouse_pos)) {
-            hovered_element = e.getElement();
+            hovered_element = e.element;
             break;
         }
     }
@@ -105,44 +105,44 @@ pub fn grabElement() void {
     switch (sidebar_tab) {
         .Settings => inline for (settings_elements) |e| {
             if (e.containsPoint(mouse_pos)) {
-                hovered_element = e.getElement();
+                hovered_element = e.element;
                 break;
             }
         },
         .Patterns => inline for (pattern_list_elements) |e| {
             if (e.containsPoint(mouse_pos)) {
-                hovered_element = e.getElement();
+                hovered_element = e.element;
                 break;
             }
         },
         .GameTypes => inline for (game_type_elements) |e| {
             if (e.containsPoint(mouse_pos)) {
-                hovered_element = e.getElement();
+                hovered_element = e.element;
                 break;
             }
         } else {
             switch (game_type_dropdown.getSelected()) {
                 .@"Static Array" => inline for (static_game_elements) |e2| {
                     if (e2.containsPoint(mouse_pos)) {
-                        hovered_element = e2.getElement();
+                        hovered_element = e2.element;
                         break;
                     }
                 },
                 .@"Dynamic Array" => inline for (dynamic_game_elemnts) |e2| {
                     if (e2.containsPoint(mouse_pos)) {
-                        hovered_element = e2.getElement();
+                        hovered_element = e2.element;
                         break;
                     }
                 },
                 .Hashset => inline for (hashset_game_elements) |e2| {
                     if (e2.containsPoint(mouse_pos)) {
-                        hovered_element = e2.getElement();
+                        hovered_element = e2.element;
                         break;
                     }
                 },
                 .@"Hashset (faster (sometimes))" => inline for (hashfast_game_elements) |e2| {
                     if (e2.containsPoint(mouse_pos)) {
-                        hovered_element = e2.getElement();
+                        hovered_element = e2.element;
                         break;
                     }
                 },
@@ -338,10 +338,6 @@ const Container = struct {
     pub fn containsPoint(self: Container, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
-
-    pub fn getElement(self: Container) GuiElement {
-        return self.element;
-    }
 };
 
 const Button = struct {
@@ -356,10 +352,6 @@ const Button = struct {
     pub fn containsPoint(self: Button, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
-
-    pub fn getElement(self: Button) GuiElement {
-        return self.element;
-    }
 };
 
 const List = struct {
@@ -373,10 +365,6 @@ const List = struct {
 
     pub fn containsPoint(self: List, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
-    }
-
-    pub fn getElement(self: List) GuiElement {
-        return self.element;
     }
 };
 
@@ -410,10 +398,6 @@ const TabButtons = struct {
 
         return false;
     }
-
-    pub fn getElement(self: TabButtons) GuiElement {
-        return self.element;
-    }
 };
 
 const Slider = struct {
@@ -429,10 +413,6 @@ const Slider = struct {
 
     pub fn containsPoint(self: Slider, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
-    }
-
-    pub fn getElement(self: Slider) GuiElement {
-        return self.element;
     }
 };
 
@@ -454,10 +434,6 @@ const Spinner = struct {
 
     pub fn containsPoint(self: Spinner, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
-    }
-
-    pub fn getElement(self: Spinner) GuiElement {
-        return self.element;
     }
 };
 
@@ -489,10 +465,6 @@ const Dropdown = struct {
         return rl.checkCollisionPointRec(point, rect);
     }
 
-    pub fn getElement(self: Dropdown) GuiElement {
-        return self.element;
-    }
-
     pub fn getSelected(self: Dropdown) self.contents {
         return @enumFromInt(self.data.selected);
     }
@@ -515,10 +487,6 @@ const TextInput = struct {
     pub fn containsPoint(self: TextInput, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
-
-    pub fn getElement(self: TextInput) GuiElement {
-        return self.element;
-    }
 };
 
 const TextInputData = struct {
@@ -537,16 +505,14 @@ pub const SidebarTabs = enum {
 
 // dummy struct for consistency
 const Grid = struct {
+    element: GuiElement = .Grid,
+
     pub fn getRect() RlRect {
         return RlRect.init(0, 0, @floatFromInt(rl.getScreenWidth()), @floatFromInt(rl.getScreenHeight()));
     }
 
     pub fn containsPoint(_: Grid, _: Vec2) bool {
         return true;
-    }
-
-    pub fn getElement(_: Grid) GuiElement {
-        return .Grid;
     }
 };
 
