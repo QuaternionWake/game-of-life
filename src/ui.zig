@@ -203,7 +203,7 @@ pub fn drawTabButtons(tb: TabButtons) void {
     const fields = std.meta.fields(tb.tabs);
 
     inline for (fields) |field| {
-        if (@as(tb.tabs, @enumFromInt(field.value)).getGuiElement() == previous_held_element) {
+        if (tb.element == previous_held_element) {
             if (rg.button(rect, field.name)) {
                 sidebar_tab = @enumFromInt(field.value);
             }
