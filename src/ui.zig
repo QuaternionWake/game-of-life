@@ -305,12 +305,13 @@ pub fn drawDropdown(d: Dropdown) bool {
     var selected_idx: i32 = @intCast(d.data.selected);
 
     if (d.element == previous_held_element) {
-        _ = rg.dropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing);
-        if (rl.checkCollisionPointRec(rl.getMousePosition(), d.getRect()) and rl.isMouseButtonReleased(.left)) {
+        if (rg.dropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing) != 0) {
             d.data.editing = !d.data.editing;
         }
     } else if (previous_held_element == null) {
-        _ = rg.dropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing);
+        if (rg.dropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing) != 0) {
+            d.data.editing = !d.data.editing;
+        }
     } else {
         rg.lock();
         _ = rg.dropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing);
