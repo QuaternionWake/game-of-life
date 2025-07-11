@@ -96,7 +96,7 @@ pub fn main() !void {
         };
         const scroll = rl.getMouseWheelMove();
 
-        if (ui.held_element == .Grid or ui.held_element == null) {
+        if (ui.canGrab(ui.grid)) {
             if (!rl.isKeyDown(.left_control)) {
                 // Move and zoom the camera
                 // ------------------------

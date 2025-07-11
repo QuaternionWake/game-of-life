@@ -161,6 +161,10 @@ pub fn grabElement() void {
     }
 }
 
+pub fn canGrab(e: anytype) bool {
+    return held_element == e.element or (held_element == null and hovered_element == e.element);
+}
+
 /// Returns true when clicked
 pub fn drawButton(b: Button) bool {
     if (b.element == previous_held_element) {
