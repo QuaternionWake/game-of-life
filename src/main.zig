@@ -290,6 +290,7 @@ pub fn main() !void {
                 .Patterns => blk: {
                     const names_list = patterns.getCategory(.Spaceships).getNames(ally) catch break :blk;
                     defer names_list.deinit();
+                    defer _ = ui.drawDropdown(ui.pattern_category_dropdown);
                     ui.drawListView(ui.pattern_list, names_list.items);
                     if (ui.drawTextInput(ui.pattern_name_input)) {
                         const len = std.mem.indexOfSentinel(u8, 0, ui.pattern_name_input.data.text_buffer);
@@ -313,7 +314,7 @@ pub fn main() !void {
                         _ = file.write(zon) catch break :save;
                     }
                     _ = ui.drawTextInput(ui.pattern_load_path_input);
-                    _ = ui.drawDropdown(ui.load_pattern_extension_dropdown);
+                    defer _ = ui.drawDropdown(ui.load_pattern_extension_dropdown);
                     if (ui.drawButton(ui.load_pattern_button)) load: {
                         const format = ui.load_pattern_extension_dropdown.getSelected();
                         const len = std.mem.indexOfSentinel(u8, 0, ui.pattern_load_path_input.data.text_buffer);
@@ -343,9 +344,18 @@ pub fn main() !void {
                         clipboard.deinit();
                         clipboard = new_pat;
                     }
-                    _ = ui.drawDropdown(ui.pattern_category_dropdown);
                 },
                 .GameTypes => {
+                    defer if (ui.drawDropdown(ui.game_type_dropdown)) {
+                        gol = switch (ui.game_type_dropdown.getSelected()) {
+                            .@"Static Array" => static_array_game.gol(),
+                            .@"Dynamic Array" => dynamic_array_game.gol(),
+                            .Hashset => hashset_game.gol(),
+                            .@"Hashset (faster (sometimes))" => hashfast_game.gol(),
+                        };
+                        game_thread.message(.{ .change_game = gol });
+                    };
+
                     switch (ui.game_type_dropdown.getSelected()) {
                         .@"Static Array" => {
                             // static array info/options
@@ -376,16 +386,6 @@ pub fn main() !void {
                         .@"Hashset (faster (sometimes))" => {
                             // woohoo
                         },
-                    }
-
-                    if (ui.drawDropdown(ui.game_type_dropdown)) {
-                        gol = switch (ui.game_type_dropdown.getSelected()) {
-                            .@"Static Array" => static_array_game.gol(),
-                            .@"Dynamic Array" => dynamic_array_game.gol(),
-                            .Hashset => hashset_game.gol(),
-                            .@"Hashset (faster (sometimes))" => hashfast_game.gol(),
-                        };
-                        game_thread.message(.{ .change_game = gol });
                     }
                 },
             }
