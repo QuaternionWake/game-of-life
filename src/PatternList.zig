@@ -11,7 +11,8 @@ allocator: Allocator,
 
 const Self = @This();
 
-pub fn init(ally: Allocator) !Self {
+pub fn init(ally: Allocator, category: []const u8) !Self {
+    _ = category;
     const patterns: [4]Pattern.Slice = @import("resources/patterns.zon");
     var pattern_list = try List(Pattern).initCapacity(ally, patterns.len);
     for (patterns) |pat| {

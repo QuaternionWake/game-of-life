@@ -18,7 +18,7 @@ const HashsetGame = @import("games/Hashset.zig");
 const HashfastGame = @import("games/HashsetFaster.zig");
 const ui = @import("ui.zig");
 const Pattern = @import("Pattern.zig");
-const PatternList = @import("PatternList.zig");
+const PatternLibrary = @import("PatternLibrary.zig");
 const GameThread = @import("GameThread.zig");
 const file_formats = @import("file-formats.zig");
 
@@ -66,7 +66,7 @@ pub fn main() !void {
     var clipboard = try Pattern.init("", &.{}, ally);
     defer clipboard.deinit();
 
-    const patterns = try PatternList.init(ally);
+    var patterns = try PatternLibrary.init(&.{"placeholder"}, ally);
     defer patterns.deinit();
 
     var debug_menu: bool = false;
@@ -161,7 +161,10 @@ pub fn main() !void {
                 clipboard.orientation = .{};
             }
         }
-        const pat = if (ui.pattern_list.data.active) |idx| patterns.getPatternRef(idx) else &clipboard;
+        const pat = if (ui.pattern_list.data.active) |idx|
+            patterns.getCategory("placeholder").?.getPatternRef(idx)
+        else
+            &clipboard;
         if (rl.isKeyPressed(.p)) blk: {
             const tiles = pat.getTiles(ally) catch break :blk;
             game_thread.message(.{ .set_tiles = .{ .x = pointer_pos_int.x, .y = pointer_pos_int.y, .tiles = tiles } });
@@ -285,7 +288,7 @@ pub fn main() !void {
                     }
                 },
                 .Patterns => blk: {
-                    const names_list = patterns.getNames(ally) catch break :blk;
+                    const names_list = patterns.getCategory("placeholder").?.getNames(ally) catch break :blk;
                     defer names_list.deinit();
                     ui.drawListView(ui.pattern_list, names_list.items);
                     if (ui.drawTextInput(ui.pattern_name_input)) {
