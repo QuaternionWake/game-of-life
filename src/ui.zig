@@ -144,11 +144,15 @@ pub fn canGrab(e: anytype) bool {
     return held_element == e.element or (held_element == null and hovered_element == e.element);
 }
 
+pub fn isHolding(e: anytype) bool {
+    return held_element == e.element or previous_held_element == e.element;
+}
+
 /// Returns true when clicked
 pub fn drawButton(b: Button) bool {
-    if (b.element == previous_held_element) {
+    if (isHolding(b)) {
         return rg.button(b.getRect(), b.text);
-    } else if (previous_held_element == null) {
+    } else if (canGrab(b)) {
         _ = rg.button(b.getRect(), b.text);
         return false;
     } else {
@@ -176,11 +180,11 @@ pub fn drawTabButtons(tb: TabButtons) void {
     const fields = std.meta.fields(tb.tabs);
 
     inline for (fields) |field| {
-        if (tb.element == previous_held_element) {
+        if (isHolding(tb)) {
             if (rg.button(rect, field.name)) {
                 sidebar_tab = @enumFromInt(field.value);
             }
-        } else if (previous_held_element == null) {
+        } else if (canGrab(tb)) {
             _ = rg.button(rect, field.name);
         } else {
             rg.lock();
@@ -197,12 +201,12 @@ pub fn drawListView(list: List, items: [][*:0]const u8) void {
     var active_inner: i32 = if (list.data.active) |a| @intCast(a) else -1;
     var focused_inner: i32 = if (list.data.focused) |f| @intCast(f) else -1;
 
-    if (list.element == previous_held_element) {
+    if (isHolding(list)) {
         _ = rg.listViewEx(list.getRect(), items, &list.data.scroll, &active_inner, &focused_inner);
 
         list.data.active = if (active_inner != -1) @intCast(active_inner) else null;
         list.data.focused = if (focused_inner != -1) @intCast(focused_inner) else null;
-    } else if (previous_held_element == null) {
+    } else if (canGrab(list)) {
         _ = rg.listViewEx(list.getRect(), items, &list.data.scroll, &active_inner, &focused_inner);
     } else {
         rg.lock();
@@ -214,7 +218,7 @@ pub fn drawListView(list: List, items: [][*:0]const u8) void {
 /// Returns true when editing stops.
 pub fn drawTextInput(ti: TextInput) bool {
     const previous_editing = ti.data.editing;
-    if (ti.element == previous_held_element or previous_held_element == null) {
+    if (ti.data.editing or canGrab(ti)) {
         if (rg.textBox(ti.getRect(), ti.data.text_buffer, @intCast(ti.data.text_buffer.len - 1), ti.data.editing)) {
             ti.data.editing = !ti.data.editing;
         }
@@ -229,7 +233,7 @@ pub fn drawTextInput(ti: TextInput) bool {
 /// Returns true when value has changed
 pub fn drawSlider(s: Slider) bool {
     const old_value = s.data.value;
-    if (s.element == previous_held_element or previous_held_element == null) {
+    if (canGrab(s)) {
         _ = rg.slider(s.getRect(), s.text_left, s.text_right, &s.data.value, s.data.min, s.data.max);
     } else {
         rg.lock();
@@ -244,12 +248,12 @@ pub fn drawSlider(s: Slider) bool {
 pub fn drawSpinner(s: Spinner, return_on_change: bool) bool {
     const old_value = s.data.value;
     var stopped_editing = false;
-    if (s.element == previous_held_element) {
+    if (isHolding(s)) {
         if (rg.spinner(s.getRect(), s.text, &s.data.value, s.data.min, s.data.max, s.data.editing) != 0) {
             s.data.editing = !s.data.editing;
             stopped_editing = !s.data.editing;
         }
-    } else if (previous_held_element == null) {
+    } else if (canGrab(s)) {
         // giving it val for min and max both prevents it form editing the value and from drawing
         // the wrong, edited value for one frame
         if (rg.spinner(s.getRect(), s.text, &s.data.value, s.data.value, s.data.value, s.data.editing) != 0) {
@@ -289,11 +293,11 @@ pub fn drawDropdown(d: Dropdown) bool {
 
     var selected_idx: i32 = @intCast(d.data.selected);
 
-    if (d.element == previous_held_element) {
+    if (isHolding(d)) {
         if (rg.dropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing) != 0) {
             d.data.editing = !d.data.editing;
         }
-    } else if (previous_held_element == null) {
+    } else if (canGrab(d)) {
         if (rg.dropdownBox(d.getRect(), &field_names, &selected_idx, d.data.editing) != 0) {
             d.data.editing = !d.data.editing;
         }
