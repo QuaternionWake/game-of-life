@@ -417,6 +417,11 @@ pub fn main() !void {
                 rl.drawText(rl.textFormat("Mouse pos: %.0f, %.0f", .{ mouse_pos.x, mouse_pos.y }), 10, 70, 17, .dark_gray);
                 rl.drawText(rl.textFormat("Pointer pos: %.2f, %.2f", .{ pointer_pos.x, pointer_pos.y }), 10, 90, 17, .dark_gray);
                 rl.drawText(rl.textFormat("Camera pos: %.2f, %.2f, Zoom: %.4f", .{ camera.target.x, camera.target.y, camera.zoom }), 10, 110, 17, .dark_gray);
+                var buf: [256]u8 = undefined;
+                const held_text = std.fmt.bufPrintZ(&buf, "Held element: {any}", .{ui.held_element}) catch "oops";
+                rl.drawText(held_text, 10, 130, 17, .dark_gray);
+                const hovered_text = std.fmt.bufPrintZ(&buf, "Hovered element: {any}", .{ui.hovered_element}) catch "oops";
+                rl.drawText(hovered_text, 10, 150, 17, .dark_gray);
             }
 
             if (help_menu) {
