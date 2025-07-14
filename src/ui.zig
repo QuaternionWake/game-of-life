@@ -197,11 +197,13 @@ pub fn drawListView(list: List, items: [][*:0]const u8) void {
     var active_inner: i32 = if (list.data.active) |a| @intCast(a) else -1;
     var focused_inner: i32 = if (list.data.focused) |f| @intCast(f) else -1;
 
-    if (list.element == previous_held_element or previous_held_element == null) {
+    if (list.element == previous_held_element) {
         _ = rg.listViewEx(list.getRect(), items, &list.data.scroll, &active_inner, &focused_inner);
 
         list.data.active = if (active_inner != -1) @intCast(active_inner) else null;
         list.data.focused = if (focused_inner != -1) @intCast(focused_inner) else null;
+    } else if (previous_held_element == null) {
+        _ = rg.listViewEx(list.getRect(), items, &list.data.scroll, &active_inner, &focused_inner);
     } else {
         rg.lock();
         _ = rg.listViewEx(list.getRect(), items, &list.data.scroll, &active_inner, &focused_inner);
