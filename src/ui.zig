@@ -8,6 +8,7 @@ const RlRect = rl.Rectangle;
 const Rect = @import("rect.zig");
 
 const GameType = @import("main.zig").GameType;
+const Category = @import("PatternLibrary.zig").Category;
 const Wrap = @import("games/DynamicArray.zig").Wrap;
 const LoadableFormats = @import("file-formats.zig").LoadableFormats;
 
@@ -25,6 +26,7 @@ pub const GuiElement = enum {
     GameSpeedSlider,
     GameSpeedSpinner,
 
+    PatternCategoryDropdown,
     PatternList,
     PatternNameInput,
     SavePatternButton,
@@ -72,6 +74,7 @@ const settings_elements = .{
 };
 
 const pattern_list_elements = .{
+    pattern_category_dropdown,
     pattern_list,
     pattern_name_input,
     save_pattern_button,
@@ -582,13 +585,30 @@ pub const step_button: Button = .{
     .element = .StepButton,
 };
 
-pub const pattern_list: List = .{
+pub const pattern_category_dropdown: Dropdown = .{
     .rect = .{
         .parent = &sidebar.rect,
         .x = .{ .middle = 0 },
         .y = .{ .top = 40 },
         .width = .{ .relative = -40 },
-        .height = .{ .amount = 260 },
+        .height = .{ .amount = 40 },
+    },
+    .contents = Category,
+    .data = &pattern_category_dropdown_data,
+    .element = .PatternCategoryDropdown,
+};
+
+var pattern_category_dropdown_data: DropdownData = .{
+    .selected = @intFromEnum(Category.Spaceships),
+};
+
+pub const pattern_list: List = .{
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .middle = 0 },
+        .y = .{ .top = 90 },
+        .width = .{ .relative = -40 },
+        .height = .{ .amount = 210 },
     },
     .data = &pattern_list_data,
     .element = .PatternList,

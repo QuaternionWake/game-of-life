@@ -66,7 +66,7 @@ pub fn main() !void {
     var clipboard = try Pattern.init("", &.{}, ally);
     defer clipboard.deinit();
 
-    var patterns = try PatternLibrary.init(&.{"placeholder"}, ally);
+    var patterns = try PatternLibrary.init(ally);
     defer patterns.deinit();
 
     var debug_menu: bool = false;
@@ -162,7 +162,7 @@ pub fn main() !void {
             }
         }
         const pat = if (ui.pattern_list.data.active) |idx|
-            patterns.getCategory("placeholder").?.getPatternRef(idx)
+            patterns.getCategory(ui.pattern_category_dropdown.getSelected()).getPatternRef(idx)
         else
             &clipboard;
         if (rl.isKeyPressed(.p)) blk: {
@@ -288,7 +288,7 @@ pub fn main() !void {
                     }
                 },
                 .Patterns => blk: {
-                    const names_list = patterns.getCategory("placeholder").?.getNames(ally) catch break :blk;
+                    const names_list = patterns.getCategory(.Spaceships).getNames(ally) catch break :blk;
                     defer names_list.deinit();
                     ui.drawListView(ui.pattern_list, names_list.items);
                     if (ui.drawTextInput(ui.pattern_name_input)) {
@@ -343,6 +343,7 @@ pub fn main() !void {
                         clipboard.deinit();
                         clipboard = new_pat;
                     }
+                    _ = ui.drawDropdown(ui.pattern_category_dropdown);
                 },
                 .GameTypes => {
                     switch (ui.game_type_dropdown.getSelected()) {

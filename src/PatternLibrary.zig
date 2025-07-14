@@ -1,20 +1,20 @@
 const std = @import("std");
-const List = std.StringArrayHashMap;
+const List = std.EnumArray;
 const Allocator = std.mem.Allocator;
 
 const PatternList = @import("PatternList.zig");
 
 const Self = @This();
 
-categories: List(PatternList),
+pub const Category = enum { Spaceships, Puffers, Oscilators, Guns, Methuselahs, @"Still lifes", Wicks };
 
-pub fn init(category_names: []const []const u8, ally: Allocator) !Self {
-    var categories = List(PatternList).init(ally);
-    try categories.ensureTotalCapacity(category_names.len);
+categories: List(Category, PatternList),
 
-    for (category_names) |category| {
-        const list = try PatternList.init(ally, category);
-        categories.putAssumeCapacity(category, list);
+pub fn init(ally: Allocator) !Self {
+    var categories = List(Category, PatternList).initUndefined();
+
+    inline for (&categories.values, 0..) |*category, enum_idx| {
+        category.* = try PatternList.init(ally, @enumFromInt(enum_idx));
     }
 
     return .{
@@ -23,12 +23,11 @@ pub fn init(category_names: []const []const u8, ally: Allocator) !Self {
 }
 
 pub fn deinit(self: *Self) void {
-    for (self.categories.values()) |category| {
+    for (self.categories.values) |category| {
         category.deinit();
     }
-    self.categories.deinit();
 }
 
-pub fn getCategory(self: *Self, category: []const u8) ?*PatternList {
+pub fn getCategory(self: *Self, category: Category) *PatternList {
     return self.categories.getPtr(category);
 }
