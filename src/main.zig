@@ -255,32 +255,32 @@ pub fn main() !void {
             }
             camera.end();
 
-            if (ui.drawTabButtons(ui.sidebar_tab_buttons)) |tab| {
+            if (ui.sidebar_tab_buttons.draw()) |tab| {
                 ui.sidebar_tab = tab;
             }
-            ui.drawContainer(ui.sidebar);
+            ui.sidebar.draw();
 
             switch (ui.sidebar_tab) {
                 .Settings => {
-                    ui.drawContainer(ui.controls);
-                    if (ui.drawButton(ui.clear_button)) game_thread.message(.{ .clear = {} });
-                    if (ui.drawButton(ui.randomize_button)) game_thread.message(.{ .randomize = {} });
+                    ui.controls.draw();
+                    if (ui.clear_button.draw()) game_thread.message(.{ .clear = {} });
+                    if (ui.randomize_button.draw()) game_thread.message(.{ .randomize = {} });
                     if (game_thread.game_paused) {
-                        if (ui.drawButton(ui.unpause_button)) game_thread.message(.{ .unpause = {} });
-                        if (ui.drawButton(ui.step_button)) game_thread.message(.{ .step = {} });
+                        if (ui.unpause_button.draw()) game_thread.message(.{ .unpause = {} });
+                        if (ui.step_button.draw()) game_thread.message(.{ .step = {} });
                     } else {
-                        if (ui.drawButton(ui.pause_button)) game_thread.message(.{ .pause = {} });
+                        if (ui.pause_button.draw()) game_thread.message(.{ .pause = {} });
                         rg.setState(@intFromEnum(rg.State.disabled));
-                        if (ui.drawButton(ui.step_button)) game_thread.message(.{ .step = {} });
+                        if (ui.step_button.draw()) game_thread.message(.{ .step = {} });
                         rg.setState(@intFromEnum(rg.State.normal));
                     }
 
-                    ui.drawContainer(ui.game_speed_box);
-                    if (ui.drawSlider(ui.game_speed_slider)) {
+                    ui.game_speed_box.draw();
+                    if (ui.game_speed_slider.draw()) {
                         game_speed = @intFromFloat(ui.game_speed_slider.data.value);
                         ui.game_speed_spinner.data.value = @intCast(game_speed);
                     }
-                    if (ui.drawSpinner(ui.game_speed_spinner, true)) {
+                    if (ui.game_speed_spinner.draw(true)) {
                         game_speed = @intCast(ui.game_speed_spinner.data.value);
                         ui.game_speed_slider.data.value = math.clamp(
                             @as(f32, @floatFromInt(game_speed)),
@@ -294,12 +294,12 @@ pub fn main() !void {
                     defer for (names_list.values) |name| {
                         ally.free(name);
                     };
-                    ui.drawTabbedList(ui.pattern_list, names_list);
-                    if (ui.drawTextInput(ui.pattern_name_input)) {
+                    ui.pattern_list.draw(names_list);
+                    if (ui.pattern_name_input.draw()) {
                         const len = std.mem.indexOfSentinel(u8, 0, ui.pattern_name_input.data.text_buffer);
                         clipboard.setName(ui.pattern_name_input.data.text_buffer[0..len]) catch {};
                     }
-                    if (ui.drawButton(ui.save_pattern_button)) save: {
+                    if (ui.save_pattern_button.draw()) save: {
                         if (clipboard.name.len == 0) break :save;
                         var filename = List(u8).initCapacity(ally, clipboard.name.len + 4) catch break :save;
                         defer filename.deinit();
@@ -316,9 +316,9 @@ pub fn main() !void {
                         defer ally.free(zon);
                         _ = file.write(zon) catch break :save;
                     }
-                    _ = ui.drawTextInput(ui.pattern_load_path_input);
-                    defer _ = ui.drawDropdown(ui.load_pattern_extension_dropdown);
-                    if (ui.drawButton(ui.load_pattern_button)) load: {
+                    _ = ui.pattern_load_path_input.draw();
+                    defer _ = ui.load_pattern_extension_dropdown.draw();
+                    if (ui.load_pattern_button.draw()) load: {
                         const format = ui.load_pattern_extension_dropdown.getSelected();
                         const len = std.mem.indexOfSentinel(u8, 0, ui.pattern_load_path_input.data.text_buffer);
                         if (len == 0) break :load;
@@ -341,7 +341,7 @@ pub fn main() !void {
                         clipboard.deinit();
                         clipboard = new_pat;
                     }
-                    if (ui.drawButton(ui.load_from_clipboard_button)) clip: {
+                    if (ui.load_from_clipboard_button.draw()) clip: {
                         const str = rl.getClipboardText();
                         const new_pat = file_formats.fromRle(str, ally) catch break :clip;
                         clipboard.deinit();
@@ -349,7 +349,7 @@ pub fn main() !void {
                     }
                 },
                 .GameTypes => {
-                    defer if (ui.drawDropdown(ui.game_type_dropdown)) {
+                    defer if (ui.game_type_dropdown.draw()) {
                         gol = switch (ui.game_type_dropdown.getSelected()) {
                             .@"Static Array" => static_array_game.gol(),
                             .@"Dynamic Array" => dynamic_array_game.gol(),
@@ -365,17 +365,17 @@ pub fn main() !void {
                         },
                         .@"Dynamic Array" => {
                             // dynamic array info/options
-                            ui.drawContainer(ui.dynamic_array_options_box);
-                            if (ui.drawSpinner(ui.dynamic_array_width_spinner, false)) {
+                            ui.dynamic_array_options_box.draw();
+                            if (ui.dynamic_array_width_spinner.draw(false)) {
                                 dynamic_array_game.setXLen(@intCast(ui.dynamic_array_width_spinner.data.value));
                             }
-                            if (ui.drawSpinner(ui.dynamic_array_height_spinner, false)) {
+                            if (ui.dynamic_array_height_spinner.draw(false)) {
                                 dynamic_array_game.setYLen(@intCast(ui.dynamic_array_height_spinner.data.value));
                             }
-                            if (ui.drawDropdown(ui.dynamic_array_ywrap_dropdown)) {
+                            if (ui.dynamic_array_ywrap_dropdown.draw()) {
                                 dynamic_array_game.setYWrap(ui.dynamic_array_ywrap_dropdown.getSelected());
                             }
-                            if (ui.drawDropdown(ui.dynamic_array_xwrap_dropdown)) {
+                            if (ui.dynamic_array_xwrap_dropdown.draw()) {
                                 dynamic_array_game.setXWrap(ui.dynamic_array_xwrap_dropdown.getSelected());
                             }
                             const x_wrap_rect = ui.dynamic_array_xwrap_dropdown.rect.rlRect();
