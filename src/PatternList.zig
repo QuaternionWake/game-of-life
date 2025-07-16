@@ -6,18 +6,21 @@ const file_formats = @import("file-formats.zig");
 const Tile = @import("GameOfLife.zig").Tile;
 const Pattern = @import("Pattern.zig");
 const Category = @import("PatternLibrary.zig").Category;
+const resources = @import("resources");
 
 patterns: List(Pattern),
 allocator: Allocator,
 
 const Self = @This();
 
-pub fn init(ally: Allocator, category: Category) !Self {
+pub fn init(ally: Allocator, comptime category: Category) !Self {
     var pattern_list = List(Pattern).init(ally);
-    if (category != .@"User patterns") {
-        const patterns: [4]Pattern.Slice = @import("resources/patterns.zon");
-        for (patterns) |pat| {
-            try pattern_list.append(try pat.toPattern(ally));
+    // Couldn't get it to parse at comptime ¯\_(ツ)_/¯
+    if (category != .Others) {
+        const rles = @field(resources, @tagName(category));
+        for (rles) |rle| {
+            const pat = file_formats.fromRle(rle, ally) catch continue;
+            pattern_list.append(pat) catch continue;
         }
     } else blk: {
         const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :blk;

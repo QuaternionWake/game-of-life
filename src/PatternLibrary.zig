@@ -7,7 +7,7 @@ const Pattern = @import("Pattern.zig");
 
 const Self = @This();
 
-pub const Category = enum { Spaceships, Puffers, Oscilators, Guns, Methuselahs, @"Still lifes", Wicks, @"User patterns" };
+pub const Category = enum { Spaceships, Puffers, Oscilators, Guns, Methuselahs, @"Still lifes", Wicks, Others };
 
 categories: List(Category, PatternList),
 
