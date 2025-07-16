@@ -221,9 +221,11 @@ const List = struct {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
 
-    pub fn draw(self: List, items: [][*:0]const u8) void {
+    pub fn draw(self: List, items: [][*:0]const u8) bool {
         var active_inner: i32 = if (self.data.active) |a| @intCast(a) else -1;
         var focused_inner: i32 = if (self.data.focused) |f| @intCast(f) else -1;
+
+        const old_active = self.data.active;
 
         if (isHolding(self)) {
             _ = rg.listViewEx(self.getRect(), items, &self.data.scroll, &active_inner, &focused_inner);
@@ -237,6 +239,7 @@ const List = struct {
             _ = rg.listViewEx(self.getRect(), items, &self.data.scroll, &active_inner, &focused_inner);
             rg.unlock();
         }
+        return old_active != self.data.active;
     }
 
     const Data = struct {
@@ -297,16 +300,17 @@ fn TabbedList(Tabs: type) type {
             };
         }
 
-        pub fn draw(self: Self, items: EnumArray(Tabs, [][*:0]const u8)) void {
+        pub fn draw(self: Self, items: EnumArray(Tabs, [][*:0]const u8)) bool {
             if (self.getTabButtons().draw()) |tab| {
                 self.data.tab = tab;
             }
 
             var list_data_buf: List.Data = undefined;
-            self.getList(&list_data_buf).draw(items.get(self.data.tab));
+            const result = self.getList(&list_data_buf).draw(items.get(self.data.tab));
             self.data.scroll.getPtr(self.data.tab).* = list_data_buf.scroll;
             self.data.active = list_data_buf.active;
             self.data.focused = list_data_buf.focused;
+            return result;
         }
 
         const Data = struct {

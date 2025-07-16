@@ -3,6 +3,7 @@ const List = std.EnumArray;
 const Allocator = std.mem.Allocator;
 
 const PatternList = @import("PatternList.zig");
+const Pattern = @import("Pattern.zig");
 
 const Self = @This();
 
@@ -40,3 +41,18 @@ pub fn getPatternNames(self: *Self, ally: Allocator) !List(Category, [][*:0]cons
     }
     return result_list;
 }
+
+pub fn getPattern(self: Self, idx: LibraryIndex) Pattern {
+    const pat_list = self.categories.get(idx.category);
+    return pat_list.getPattern(idx.index);
+}
+
+pub fn getPatternRef(self: Self, idx: LibraryIndex) *Pattern {
+    const pat_list = self.categories.get(idx.category);
+    return pat_list.getPatternRef(idx.index);
+}
+
+pub const LibraryIndex = struct {
+    category: Category,
+    index: usize,
+};

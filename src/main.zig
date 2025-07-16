@@ -69,6 +69,8 @@ pub fn main() !void {
     var patterns = try PatternLibrary.init(ally);
     defer patterns.deinit();
 
+    var library_index: ?PatternLibrary.LibraryIndex = null;
+
     var debug_menu: bool = false;
     var help_menu: bool = false;
 
@@ -161,8 +163,8 @@ pub fn main() !void {
                 clipboard.orientation = .{};
             }
         }
-        const pat = if (ui.pattern_list.data.active) |idx|
-            patterns.getCategory(ui.pattern_list.data.tab).getPatternRef(idx)
+        const pat = if (library_index) |idx|
+            patterns.getPatternRef(idx)
         else
             &clipboard;
         if (rl.isKeyPressed(.p)) blk: {
@@ -194,7 +196,7 @@ pub fn main() !void {
 
         if (rl.isKeyPressed(.escape)) {
             clipboard.setTiles(&.{}) catch {};
-            ui.pattern_list.data.active = null;
+            library_index = null;
         }
 
         if (rl.isKeyPressed(.space)) {
@@ -294,7 +296,13 @@ pub fn main() !void {
                     defer for (names_list.values) |name| {
                         ally.free(name);
                     };
-                    ui.pattern_list.draw(names_list);
+                    if (ui.pattern_list.draw(names_list)) {
+                        library_index =
+                            if (ui.pattern_list.data.active) |active| .{
+                                .category = ui.pattern_list.data.tab,
+                                .index = active,
+                            } else null;
+                    }
                     if (ui.pattern_name_input.draw()) {
                         const len = std.mem.indexOfSentinel(u8, 0, ui.pattern_name_input.data.text_buffer);
                         clipboard.setName(ui.pattern_name_input.data.text_buffer[0..len]) catch {};
