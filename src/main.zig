@@ -197,6 +197,7 @@ pub fn main() !void {
         if (rl.isKeyPressed(.escape)) {
             clipboard.setTiles(&.{}) catch {};
             library_index = null;
+            ui.pattern_list.data.active = null;
         }
 
         if (rl.isKeyPressed(.space)) {
@@ -299,7 +300,7 @@ pub fn main() !void {
                     if (ui.pattern_list.draw(names_list)) {
                         library_index =
                             if (ui.pattern_list.data.active) |active| .{
-                                .category = ui.pattern_list.data.tab,
+                                .category = ui.pattern_list.data.selected_tab,
                                 .index = active,
                             } else null;
                     }

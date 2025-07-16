@@ -223,20 +223,19 @@ const List = struct {
 
     pub fn draw(self: List, items: [][*:0]const u8) bool {
         var active_inner: i32 = if (self.data.active) |a| @intCast(a) else -1;
-        var focused_inner: i32 = if (self.data.focused) |f| @intCast(f) else -1;
+        var _focused: i32 = -1;
 
         const old_active = self.data.active;
 
         if (isHolding(self)) {
-            _ = rg.listViewEx(self.getRect(), items, &self.data.scroll, &active_inner, &focused_inner);
+            _ = rg.listViewEx(self.getRect(), items, &self.data.scroll, &active_inner, &_focused);
 
             self.data.active = if (active_inner != -1) @intCast(active_inner) else null;
-            self.data.focused = if (focused_inner != -1) @intCast(focused_inner) else null;
         } else if (canGrab(self)) {
-            _ = rg.listViewEx(self.getRect(), items, &self.data.scroll, &active_inner, &focused_inner);
+            _ = rg.listViewEx(self.getRect(), items, &self.data.scroll, &active_inner, &_focused);
         } else {
             rg.lock();
-            _ = rg.listViewEx(self.getRect(), items, &self.data.scroll, &active_inner, &focused_inner);
+            _ = rg.listViewEx(self.getRect(), items, &self.data.scroll, &active_inner, &_focused);
             rg.unlock();
         }
         return old_active != self.data.active;
@@ -245,7 +244,6 @@ const List = struct {
     const Data = struct {
         scroll: i32 = 0,
         active: ?usize = null,
-        focused: ?usize = null,
     };
 };
 
@@ -286,7 +284,7 @@ fn TabbedList(Tabs: type) type {
         }
 
         pub fn getList(self: *const Self, data_buf: *List.Data) List {
-            data_buf.* = self.data.getListData(self.data.tab);
+            data_buf.* = self.data.getListData();
             return .{
                 .rect = .{
                     .parent = &self.rect,
@@ -302,28 +300,30 @@ fn TabbedList(Tabs: type) type {
 
         pub fn draw(self: Self, items: EnumArray(Tabs, [][*:0]const u8)) bool {
             if (self.getTabButtons().draw()) |tab| {
-                self.data.tab = tab;
+                self.data.open_tab = tab;
             }
 
             var list_data_buf: List.Data = undefined;
-            const result = self.getList(&list_data_buf).draw(items.get(self.data.tab));
-            self.data.scroll.getPtr(self.data.tab).* = list_data_buf.scroll;
-            self.data.active = list_data_buf.active;
-            self.data.focused = list_data_buf.focused;
+            var result = false;
+            if (self.getList(&list_data_buf).draw(items.get(self.data.open_tab))) {
+                self.data.selected_tab = self.data.open_tab;
+                self.data.active = list_data_buf.active;
+                result = true;
+            }
+            self.data.scroll.getPtr(self.data.open_tab).* = list_data_buf.scroll;
             return result;
         }
 
         const Data = struct {
             scroll: EnumArray(Tabs, i32) = .initFill(0),
             active: ?usize = null,
-            focused: ?usize = null,
-            tab: Tabs = @enumFromInt(0),
+            selected_tab: Tabs = @enumFromInt(0),
+            open_tab: Tabs = @enumFromInt(0),
 
-            pub fn getListData(self: Data, tab: Tabs) List.Data {
+            pub fn getListData(self: Data) List.Data {
                 return .{
-                    .scroll = self.scroll.get(tab),
-                    .active = if (tab == self.tab) self.active else null,
-                    .focused = if (tab == self.tab) self.focused else null,
+                    .scroll = self.scroll.get(self.open_tab),
+                    .active = if (self.open_tab == self.selected_tab) self.active else null,
                 };
             }
         };
