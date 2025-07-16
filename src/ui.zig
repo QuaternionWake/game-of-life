@@ -376,101 +376,102 @@ const List = struct {
     };
 };
 
-const TabbedList = struct {
-    rect: Rect,
-    tab_height: f32,
-    tabs: type,
-    data: *Data,
-    element: GuiElement,
+fn TabbedList(Tabs: type) type {
+    return struct {
+        rect: Rect,
+        tab_height: f32,
+        data: *Data,
+        element: GuiElement,
 
-    pub fn getRect(self: TabbedList) RlRect {
-        return self.rect.rlRect();
-    }
+        pub fn getRect(self: TabbedList(Tabs)) RlRect {
+            return self.rect.rlRect();
+        }
 
-    pub fn containsPoint(self: TabbedList, point: Vec2) bool {
-        return rl.checkCollisionPointRec(point, self.getRect());
-    }
+        pub fn containsPoint(self: TabbedList(Tabs), point: Vec2) bool {
+            return rl.checkCollisionPointRec(point, self.getRect());
+        }
 
-    pub fn getTab(self: TabbedList) self.tabs {
-        return @enumFromInt(self.data.tab);
-    }
+        pub fn getTab(self: TabbedList(Tabs)) Tabs {
+            return @enumFromInt(self.data.tab);
+        }
 
-    pub fn getTabButtons(self: TabbedList) TabButtons {
-        const tab_count = @typeInfo(self.tabs).@"enum".fields.len;
-        const tab_bar_width = 180; // FIXME: properly parametrize the ui structs so we can do this right
-        const tab_gap = 3;
-        const tab_width = (tab_bar_width - tab_gap * (tab_count - 1)) / tab_count;
+        pub fn getTabButtons(self: TabbedList(Tabs)) TabButtons(Tabs) {
+            const tab_count = @typeInfo(Tabs).@"enum".fields.len;
+            const tab_bar_width = 180; // FIXME: properly parametrize the ui structs so we can do this right
+            const tab_gap = 3;
+            const tab_width = (tab_bar_width - tab_gap * (tab_count - 1)) / tab_count;
 
-        return .{
-            .rect = .{
-                .parent = &self.rect,
-                .x = .{ .left = 0 },
-                .y = .{ .top = 0 },
-                .width = .{ .amount = tab_width },
-                .height = .{ .amount = self.tab_height },
-            },
-            .offset = Vec2.init(tab_width + tab_gap, 0),
-            .tabs = self.tabs,
-            .element = self.element,
-        };
-    }
-
-    pub fn getListView(self: TabbedList, data_buf: *List.Data) List {
-        data_buf.* = self.data.getListData(self.data.tab);
-        return .{
-            .rect = .{
-                .parent = &self.rect,
-                .x = .{ .left = 0 },
-                .y = .{ .top = self.tab_height },
-                .width = .{ .relative = 0 },
-                .height = .{ .relative = -self.tab_height },
-            },
-            .data = data_buf,
-            .element = self.element,
-        };
-    }
-
-    const Data = struct {
-        scroll: []i32,
-        active: ?usize = null,
-        focused: ?usize = null,
-        tab: usize = 0,
-
-        pub fn getListData(self: Data, tab: usize) List.Data {
             return .{
-                .scroll = self.scroll[tab],
-                .active = if (tab == self.tab) self.active else null,
-                .focused = if (tab == self.tab) self.focused else null,
+                .rect = .{
+                    .parent = &self.rect,
+                    .x = .{ .left = 0 },
+                    .y = .{ .top = 0 },
+                    .width = .{ .amount = tab_width },
+                    .height = .{ .amount = self.tab_height },
+                },
+                .offset = Vec2.init(tab_width + tab_gap, 0),
+                .element = self.element,
             };
         }
-    };
-};
 
-const TabButtons = struct {
-    rect: Rect,
-    offset: Vec2,
-    tabs: type,
-    element: GuiElement,
-
-    pub fn getRect(self: TabButtons) RlRect {
-        return self.rect.rlRect();
-    }
-
-    pub fn containsPoint(self: TabButtons, point: Vec2) bool {
-        const len = std.meta.fields(self.tabs).len;
-        var rect = self.getRect();
-
-        for (0..len) |_| {
-            if (rl.checkCollisionPointRec(point, rect)) {
-                return true;
-            }
-            rect.x += self.offset.x;
-            rect.y += self.offset.y;
+        pub fn getListView(self: TabbedList(Tabs), data_buf: *List.Data) List {
+            data_buf.* = self.data.getListData(self.data.tab);
+            return .{
+                .rect = .{
+                    .parent = &self.rect,
+                    .x = .{ .left = 0 },
+                    .y = .{ .top = self.tab_height },
+                    .width = .{ .relative = 0 },
+                    .height = .{ .relative = -self.tab_height },
+                },
+                .data = data_buf,
+                .element = self.element,
+            };
         }
 
-        return false;
-    }
-};
+        const Data = struct {
+            scroll: []i32,
+            active: ?usize = null,
+            focused: ?usize = null,
+            tab: usize = 0,
+
+            pub fn getListData(self: Data, tab: usize) List.Data {
+                return .{
+                    .scroll = self.scroll[tab],
+                    .active = if (tab == self.tab) self.active else null,
+                    .focused = if (tab == self.tab) self.focused else null,
+                };
+            }
+        };
+    };
+}
+
+fn TabButtons(Tabs: type) type {
+    return struct {
+        rect: Rect,
+        offset: Vec2,
+        element: GuiElement,
+
+        pub fn getRect(self: TabButtons(Tabs)) RlRect {
+            return self.rect.rlRect();
+        }
+
+        pub fn containsPoint(self: TabButtons(Tabs), point: Vec2) bool {
+            const len = std.meta.fields(Tabs).len;
+            var rect = self.getRect();
+
+            for (0..len) |_| {
+                if (rl.checkCollisionPointRec(point, rect)) {
+                    return true;
+                }
+                rect.x += self.offset.x;
+                rect.y += self.offset.y;
+            }
+
+            return false;
+        }
+    };
+}
 
 const Slider = struct {
     rect: Rect,
@@ -516,36 +517,37 @@ const Spinner = struct {
     };
 };
 
-const Dropdown = struct {
-    rect: Rect,
-    contents: type,
-    data: *Data,
-    element: GuiElement,
+fn Dropdown(Contents: type) type {
+    return struct {
+        rect: Rect,
+        data: *Data,
+        element: GuiElement,
 
-    pub fn getRect(self: Dropdown) RlRect {
-        return self.rect.rlRect();
-    }
-
-    pub fn containsPoint(self: Dropdown, point: Vec2) bool {
-        var rect = self.getRect();
-        if (self.data.editing) {
-            rect.height += @floatFromInt(rg.getStyle(.dropdownbox, .{ .default = .text_spacing }));
-            const len = std.meta.fields(self.contents).len;
-            rect.height *= len + 1;
+        pub fn getRect(self: Dropdown(Contents)) RlRect {
+            return self.rect.rlRect();
         }
 
-        return rl.checkCollisionPointRec(point, rect);
-    }
+        pub fn containsPoint(self: Dropdown(Contents), point: Vec2) bool {
+            var rect = self.getRect();
+            if (self.data.editing) {
+                rect.height += @floatFromInt(rg.getStyle(.dropdownbox, .{ .default = .text_spacing }));
+                const len = std.meta.fields(Contents).len;
+                rect.height *= len + 1;
+            }
 
-    pub fn getSelected(self: Dropdown) self.contents {
-        return @enumFromInt(self.data.selected);
-    }
+            return rl.checkCollisionPointRec(point, rect);
+        }
 
-    const Data = struct {
-        selected: usize = 0,
-        editing: bool = false,
+        pub fn getSelected(self: Dropdown(Contents)) Contents {
+            return @enumFromInt(self.data.selected);
+        }
+
+        const Data = struct {
+            selected: usize = 0,
+            editing: bool = false,
+        };
     };
-};
+}
 
 const TextInput = struct {
     rect: Rect,
@@ -674,7 +676,7 @@ pub const step_button: Button = .{
     .element = .StepButton,
 };
 
-pub const pattern_list: TabbedList = .{
+pub const pattern_list: TabbedList(Category) = .{
     .rect = .{
         .parent = &sidebar.rect,
         .x = .{ .middle = 0 },
@@ -683,16 +685,15 @@ pub const pattern_list: TabbedList = .{
         .height = .{ .amount = 250 },
     },
     .tab_height = 20,
-    .tabs = Category,
     .data = &pattern_list_data,
     .element = .PatternList,
 };
 
-var pattern_list_data: TabbedList.Data = .{
+var pattern_list_data: TabbedList(Category).Data = .{
     .scroll = &pattern_list_scroll,
 };
 
-var pattern_list_scroll: [@typeInfo(pattern_list.tabs).@"enum".fields.len]i32 = @splat(0);
+var pattern_list_scroll: [@typeInfo(Category).@"enum".fields.len]i32 = @splat(0);
 
 pub const pattern_name_input: TextInput = .{
     .rect = .{
@@ -742,7 +743,7 @@ var pattern_load_path_input_data: TextInput.Data = .{
 
 var pattern_load_path_buf: [32:0]u8 = .{0} ** 32;
 
-pub const load_pattern_extension_dropdown: Dropdown = .{
+pub const load_pattern_extension_dropdown: Dropdown(LoadableFormats) = .{
     .rect = .{
         .parent = &sidebar.rect,
         .x = .{ .right = -65 },
@@ -750,12 +751,11 @@ pub const load_pattern_extension_dropdown: Dropdown = .{
         .width = .{ .amount = 60 },
         .height = .{ .amount = 25 },
     },
-    .contents = LoadableFormats,
     .data = &load_pattern_extension_dropdown_data,
     .element = .LoadPatternExtension,
 };
 
-var load_pattern_extension_dropdown_data: Dropdown.Data = .{};
+var load_pattern_extension_dropdown_data: Dropdown(LoadableFormats).Data = .{};
 
 pub const load_pattern_button: Button = .{
     .rect = .{
@@ -781,7 +781,7 @@ pub const load_from_clipboard_button: Button = .{
     .element = .LoadFromClipboardButton,
 };
 
-pub const sidebar_tab_buttons: TabButtons = .{
+pub const sidebar_tab_buttons: TabButtons(SidebarTabs) = .{
     .rect = .{
         .parent = &sidebar.rect,
         .x = .{ .left = -30 },
@@ -790,7 +790,6 @@ pub const sidebar_tab_buttons: TabButtons = .{
         .height = .{ .amount = 30 },
     },
     .offset = Vec2.init(0, 35),
-    .tabs = SidebarTabs,
     .element = .SidebarTabButtons,
 };
 
@@ -834,7 +833,7 @@ var game_speed_spinner_data: Spinner.Data = .{
     .editing = false,
 };
 
-pub const game_type_dropdown: Dropdown = .{
+pub const game_type_dropdown: Dropdown(GameType) = .{
     .rect = .{
         .parent = &sidebar.rect,
         .x = .{ .middle = 0 },
@@ -842,12 +841,11 @@ pub const game_type_dropdown: Dropdown = .{
         .width = .{ .relative = -40 },
         .height = .{ .amount = 40 },
     },
-    .contents = GameType,
     .data = &game_type_dropdown_data,
     .element = .GameTypeDropdown,
 };
 
-var game_type_dropdown_data: Dropdown.Data = .{
+var game_type_dropdown_data: Dropdown(GameType).Data = .{
     .selected = @intFromEnum(GameType.@"Static Array"),
 };
 
@@ -904,7 +902,7 @@ var dynamic_array_height_spinner_data: Spinner.Data = .{
     .editing = false,
 };
 
-pub const dynamic_array_xwrap_dropdown: Dropdown = .{
+pub const dynamic_array_xwrap_dropdown: Dropdown(Wrap) = .{
     .rect = .{
         .parent = &dynamic_array_options_box.rect,
         .x = .{ .left = 60 },
@@ -912,16 +910,15 @@ pub const dynamic_array_xwrap_dropdown: Dropdown = .{
         .width = .{ .relative = -80 },
         .height = .{ .amount = 30 },
     },
-    .contents = Wrap,
     .data = &dynamic_array_xwrap_dropdown_data,
     .element = .DynamicArrayXWrapDropdown,
 };
 
-var dynamic_array_xwrap_dropdown_data: Dropdown.Data = .{
+var dynamic_array_xwrap_dropdown_data: Dropdown(Wrap).Data = .{
     .selected = @intFromEnum(Wrap.Normal),
 };
 
-pub const dynamic_array_ywrap_dropdown: Dropdown = .{
+pub const dynamic_array_ywrap_dropdown: Dropdown(Wrap) = .{
     .rect = .{
         .parent = &dynamic_array_options_box.rect,
         .x = .{ .left = 60 },
@@ -929,11 +926,10 @@ pub const dynamic_array_ywrap_dropdown: Dropdown = .{
         .width = .{ .relative = -80 },
         .height = .{ .amount = 30 },
     },
-    .contents = Wrap,
     .data = &dynamic_array_ywrap_dropdown_data,
     .element = .DynamicArrayYWrapDropdown,
 };
 
-var dynamic_array_ywrap_dropdown_data: Dropdown.Data = .{
+var dynamic_array_ywrap_dropdown_data: Dropdown(Wrap).Data = .{
     .selected = @intFromEnum(Wrap.Normal),
 };
