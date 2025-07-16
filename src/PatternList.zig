@@ -13,14 +13,13 @@ allocator: Allocator,
 const Self = @This();
 
 pub fn init(ally: Allocator, category: Category) !Self {
-    _ = category;
-    const patterns: [4]Pattern.Slice = @import("resources/patterns.zon");
-    var pattern_list = try List(Pattern).initCapacity(ally, patterns.len);
-    for (patterns) |pat| {
-        pattern_list.appendAssumeCapacity(try pat.toPattern(ally));
-    }
-
-    blk: {
+    var pattern_list = List(Pattern).init(ally);
+    if (category != .@"User patterns") {
+        const patterns: [4]Pattern.Slice = @import("resources/patterns.zon");
+        for (patterns) |pat| {
+            try pattern_list.append(try pat.toPattern(ally));
+        }
+    } else blk: {
         const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :blk;
         defer ally.free(path);
         var dir = std.fs.openDirAbsolute(path, .{ .iterate = true }) catch break :blk;

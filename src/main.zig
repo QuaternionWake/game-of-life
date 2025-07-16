@@ -288,7 +288,7 @@ pub fn main() !void {
                     }
                 },
                 .Patterns => blk: {
-                    const names_list = patterns.getCategory(.Spaceships).getNames(ally) catch break :blk;
+                    const names_list = patterns.getCategory(ui.pattern_category_dropdown.getSelected()).getNames(ally) catch break :blk;
                     defer names_list.deinit();
                     defer _ = ui.drawDropdown(ui.pattern_category_dropdown);
                     ui.drawListView(ui.pattern_list, names_list.items);
