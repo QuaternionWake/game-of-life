@@ -1,4 +1,5 @@
 const std = @import("std");
+const EnumArray = std.EnumArray;
 
 const rl = @import("raylib");
 const rg = @import("raygui");
@@ -26,7 +27,6 @@ pub const GuiElement = enum {
     GameSpeedSlider,
     GameSpeedSpinner,
 
-    PatternCategoryDropdown,
     PatternList,
     PatternNameInput,
     SavePatternButton,
@@ -74,7 +74,6 @@ const settings_elements = .{
 };
 
 const pattern_list_elements = .{
-    pattern_category_dropdown,
     pattern_list,
     pattern_name_input,
     save_pattern_button,
@@ -174,15 +173,16 @@ pub fn drawContainer(c: Container) void {
     }
 }
 
-pub fn drawTabButtons(tb: TabButtons) void {
+pub fn drawTabButtons(tb: TabButtons) ?tb.tabs {
     var rect = tb.getRect();
 
     const fields = std.meta.fields(tb.tabs);
 
+    var result: ?tb.tabs = null;
     inline for (fields) |field| {
         if (isHolding(tb)) {
             if (rg.button(rect, field.name)) {
-                sidebar_tab = @enumFromInt(field.value);
+                result = @enumFromInt(field.value);
             }
         } else if (canGrab(tb)) {
             _ = rg.button(rect, field.name);
@@ -195,6 +195,7 @@ pub fn drawTabButtons(tb: TabButtons) void {
         rect.x += tb.offset.x;
         rect.y += tb.offset.y;
     }
+    return result;
 }
 
 pub fn drawListView(list: List, items: [][*:0]const u8) void {
@@ -213,6 +214,18 @@ pub fn drawListView(list: List, items: [][*:0]const u8) void {
         _ = rg.listViewEx(list.getRect(), items, &list.data.scroll, &active_inner, &focused_inner);
         rg.unlock();
     }
+}
+
+pub fn drawTabbedList(list: TabbedList, items: EnumArray(list.tabs, [][*:0]const u8)) void {
+    if (drawTabButtons(list.getTabButtons())) |tab| {
+        list.data.tab = @intFromEnum(tab);
+    }
+
+    var list_data_buf: ListData = undefined;
+    drawListView(list.getListView(&list_data_buf), items.get(list.getTab()));
+    list.data.scroll[list.data.tab] = list_data_buf.scroll;
+    list.data.active = list_data_buf.active;
+    list.data.focused = list_data_buf.focused;
 }
 
 /// Returns true when editing stops.
@@ -361,6 +374,76 @@ const ListData = struct {
     scroll: i32 = 0,
     active: ?usize = null,
     focused: ?usize = null,
+};
+
+const TabbedList = struct {
+    rect: Rect,
+    tab_height: f32,
+    tabs: type,
+    data: *TabbedListData,
+    element: GuiElement,
+
+    pub fn getRect(self: TabbedList) RlRect {
+        return self.rect.rlRect();
+    }
+
+    pub fn containsPoint(self: TabbedList, point: Vec2) bool {
+        return rl.checkCollisionPointRec(point, self.getRect());
+    }
+
+    pub fn getTab(self: TabbedList) self.tabs {
+        return @enumFromInt(self.data.tab);
+    }
+
+    pub fn getTabButtons(self: TabbedList) TabButtons {
+        const tab_count = @typeInfo(self.tabs).@"enum".fields.len;
+        const tab_bar_width = 180; // FIXME: properly parametrize the ui structs so we can do this right
+        const tab_gap = 3;
+        const tab_width = (tab_bar_width - tab_gap * (tab_count - 1)) / tab_count;
+
+        return .{
+            .rect = .{
+                .parent = &self.rect,
+                .x = .{ .left = 0 },
+                .y = .{ .top = 0 },
+                .width = .{ .amount = tab_width },
+                .height = .{ .amount = self.tab_height },
+            },
+            .offset = Vec2.init(tab_width + tab_gap, 0),
+            .tabs = self.tabs,
+            .element = self.element,
+        };
+    }
+
+    pub fn getListView(self: TabbedList, data_buf: *ListData) List {
+        data_buf.* = self.data.getListData(self.data.tab);
+        return .{
+            .rect = .{
+                .parent = &self.rect,
+                .x = .{ .left = 0 },
+                .y = .{ .top = self.tab_height },
+                .width = .{ .relative = 0 },
+                .height = .{ .relative = -self.tab_height },
+            },
+            .data = data_buf,
+            .element = self.element,
+        };
+    }
+};
+
+const TabbedListData = struct {
+    scroll: []i32,
+    active: ?usize = null,
+    focused: ?usize = null,
+    tab: usize = 0,
+
+    pub fn getListData(self: TabbedListData, tab: usize) ListData {
+        return .{
+            .scroll = self.scroll[tab],
+            .active = if (tab == self.tab) self.active else null,
+            .focused = if (tab == self.tab) self.focused else null,
+        };
+    }
 };
 
 const TabButtons = struct {
@@ -591,36 +674,25 @@ pub const step_button: Button = .{
     .element = .StepButton,
 };
 
-pub const pattern_category_dropdown: Dropdown = .{
+pub const pattern_list: TabbedList = .{
     .rect = .{
         .parent = &sidebar.rect,
         .x = .{ .middle = 0 },
         .y = .{ .top = 40 },
         .width = .{ .relative = -40 },
-        .height = .{ .amount = 40 },
+        .height = .{ .amount = 250 },
     },
-    .contents = Category,
-    .data = &pattern_category_dropdown_data,
-    .element = .PatternCategoryDropdown,
-};
-
-var pattern_category_dropdown_data: DropdownData = .{
-    .selected = @intFromEnum(Category.Spaceships),
-};
-
-pub const pattern_list: List = .{
-    .rect = .{
-        .parent = &sidebar.rect,
-        .x = .{ .middle = 0 },
-        .y = .{ .top = 90 },
-        .width = .{ .relative = -40 },
-        .height = .{ .amount = 210 },
-    },
+    .tab_height = 20,
+    .tabs = Category,
     .data = &pattern_list_data,
     .element = .PatternList,
 };
 
-var pattern_list_data: ListData = .{};
+var pattern_list_data: TabbedListData = .{
+    .scroll = &pattern_list_scroll,
+};
+
+var pattern_list_scroll: [@typeInfo(pattern_list.tabs).@"enum".fields.len]i32 = @splat(0);
 
 pub const pattern_name_input: TextInput = .{
     .rect = .{

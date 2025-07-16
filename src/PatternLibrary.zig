@@ -31,3 +31,12 @@ pub fn deinit(self: *Self) void {
 pub fn getCategory(self: *Self, category: Category) *PatternList {
     return self.categories.getPtr(category);
 }
+
+pub fn getPatternNames(self: *Self, ally: Allocator) !List(Category, [][*:0]const u8) {
+    var result_list = List(Category, [][*:0]const u8).initUndefined();
+    for (self.categories.values, &result_list.values) |cactegory, *result| {
+        var list = try cactegory.getNames(ally);
+        result.* = try list.toOwnedSlice();
+    }
+    return result_list;
+}

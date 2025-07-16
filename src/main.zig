@@ -162,7 +162,7 @@ pub fn main() !void {
             }
         }
         const pat = if (ui.pattern_list.data.active) |idx|
-            patterns.getCategory(ui.pattern_category_dropdown.getSelected()).getPatternRef(idx)
+            patterns.getCategory(ui.pattern_list.getTab()).getPatternRef(idx)
         else
             &clipboard;
         if (rl.isKeyPressed(.p)) blk: {
@@ -255,7 +255,9 @@ pub fn main() !void {
             }
             camera.end();
 
-            ui.drawTabButtons(ui.sidebar_tab_buttons);
+            if (ui.drawTabButtons(ui.sidebar_tab_buttons)) |tab| {
+                ui.sidebar_tab = tab;
+            }
             ui.drawContainer(ui.sidebar);
 
             switch (ui.sidebar_tab) {
@@ -288,10 +290,11 @@ pub fn main() !void {
                     }
                 },
                 .Patterns => blk: {
-                    const names_list = patterns.getCategory(ui.pattern_category_dropdown.getSelected()).getNames(ally) catch break :blk;
-                    defer names_list.deinit();
-                    defer _ = ui.drawDropdown(ui.pattern_category_dropdown);
-                    ui.drawListView(ui.pattern_list, names_list.items);
+                    const names_list = patterns.getPatternNames(ally) catch break :blk;
+                    defer for (names_list.values) |name| {
+                        ally.free(name);
+                    };
+                    ui.drawTabbedList(ui.pattern_list, names_list);
                     if (ui.drawTextInput(ui.pattern_name_input)) {
                         const len = std.mem.indexOfSentinel(u8, 0, ui.pattern_name_input.data.text_buffer);
                         clipboard.setName(ui.pattern_name_input.data.text_buffer[0..len]) catch {};
