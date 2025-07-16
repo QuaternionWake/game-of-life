@@ -221,7 +221,7 @@ pub fn drawTabbedList(list: TabbedList, items: EnumArray(list.tabs, [][*:0]const
         list.data.tab = @intFromEnum(tab);
     }
 
-    var list_data_buf: ListData = undefined;
+    var list_data_buf: List.Data = undefined;
     drawListView(list.getListView(&list_data_buf), items.get(list.getTab()));
     list.data.scroll[list.data.tab] = list_data_buf.scroll;
     list.data.active = list_data_buf.active;
@@ -358,7 +358,7 @@ const Button = struct {
 
 const List = struct {
     rect: Rect,
-    data: *ListData,
+    data: *Data,
     element: GuiElement,
 
     pub fn getRect(self: List) RlRect {
@@ -368,19 +368,19 @@ const List = struct {
     pub fn containsPoint(self: List, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
-};
 
-const ListData = struct {
-    scroll: i32 = 0,
-    active: ?usize = null,
-    focused: ?usize = null,
+    const Data = struct {
+        scroll: i32 = 0,
+        active: ?usize = null,
+        focused: ?usize = null,
+    };
 };
 
 const TabbedList = struct {
     rect: Rect,
     tab_height: f32,
     tabs: type,
-    data: *TabbedListData,
+    data: *Data,
     element: GuiElement,
 
     pub fn getRect(self: TabbedList) RlRect {
@@ -415,7 +415,7 @@ const TabbedList = struct {
         };
     }
 
-    pub fn getListView(self: TabbedList, data_buf: *ListData) List {
+    pub fn getListView(self: TabbedList, data_buf: *List.Data) List {
         data_buf.* = self.data.getListData(self.data.tab);
         return .{
             .rect = .{
@@ -429,21 +429,21 @@ const TabbedList = struct {
             .element = self.element,
         };
     }
-};
 
-const TabbedListData = struct {
-    scroll: []i32,
-    active: ?usize = null,
-    focused: ?usize = null,
-    tab: usize = 0,
+    const Data = struct {
+        scroll: []i32,
+        active: ?usize = null,
+        focused: ?usize = null,
+        tab: usize = 0,
 
-    pub fn getListData(self: TabbedListData, tab: usize) ListData {
-        return .{
-            .scroll = self.scroll[tab],
-            .active = if (tab == self.tab) self.active else null,
-            .focused = if (tab == self.tab) self.focused else null,
-        };
-    }
+        pub fn getListData(self: Data, tab: usize) List.Data {
+            return .{
+                .scroll = self.scroll[tab],
+                .active = if (tab == self.tab) self.active else null,
+                .focused = if (tab == self.tab) self.focused else null,
+            };
+        }
+    };
 };
 
 const TabButtons = struct {
@@ -476,7 +476,7 @@ const Slider = struct {
     rect: Rect,
     text_left: [:0]const u8,
     text_right: [:0]const u8,
-    data: *SliderData,
+    data: *Data,
     element: GuiElement,
 
     pub fn getRect(self: Slider) RlRect {
@@ -486,18 +486,18 @@ const Slider = struct {
     pub fn containsPoint(self: Slider, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
-};
 
-const SliderData = struct {
-    min: f32,
-    max: f32,
-    value: f32,
+    const Data = struct {
+        min: f32,
+        max: f32,
+        value: f32,
+    };
 };
 
 const Spinner = struct {
     rect: Rect,
     text: [:0]const u8,
-    data: *SpinnerData,
+    data: *Data,
     element: GuiElement,
 
     pub fn getRect(self: Spinner) RlRect {
@@ -507,19 +507,19 @@ const Spinner = struct {
     pub fn containsPoint(self: Spinner, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
-};
 
-const SpinnerData = struct {
-    min: i32,
-    max: i32,
-    value: i32,
-    editing: bool = false,
+    const Data = struct {
+        min: i32,
+        max: i32,
+        value: i32,
+        editing: bool = false,
+    };
 };
 
 const Dropdown = struct {
     rect: Rect,
     contents: type,
-    data: *DropdownData,
+    data: *Data,
     element: GuiElement,
 
     pub fn getRect(self: Dropdown) RlRect {
@@ -540,16 +540,16 @@ const Dropdown = struct {
     pub fn getSelected(self: Dropdown) self.contents {
         return @enumFromInt(self.data.selected);
     }
-};
 
-const DropdownData = struct {
-    selected: usize = 0,
-    editing: bool = false,
+    const Data = struct {
+        selected: usize = 0,
+        editing: bool = false,
+    };
 };
 
 const TextInput = struct {
     rect: Rect,
-    data: *TextInputData,
+    data: *Data,
     element: GuiElement,
 
     pub fn getRect(self: TextInput) RlRect {
@@ -559,11 +559,11 @@ const TextInput = struct {
     pub fn containsPoint(self: TextInput, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
-};
 
-const TextInputData = struct {
-    text_buffer: [:0]u8,
-    editing: bool = false,
+    const Data = struct {
+        text_buffer: [:0]u8,
+        editing: bool = false,
+    };
 };
 
 // dummy struct for consistency
@@ -688,7 +688,7 @@ pub const pattern_list: TabbedList = .{
     .element = .PatternList,
 };
 
-var pattern_list_data: TabbedListData = .{
+var pattern_list_data: TabbedList.Data = .{
     .scroll = &pattern_list_scroll,
 };
 
@@ -706,7 +706,7 @@ pub const pattern_name_input: TextInput = .{
     .element = .PatternNameInput,
 };
 
-var pattern_name_input_data: TextInputData = .{
+var pattern_name_input_data: TextInput.Data = .{
     .text_buffer = &pattern_name_buf,
 };
 
@@ -736,7 +736,7 @@ pub const pattern_load_path_input: TextInput = .{
     .element = .LoadPathInput,
 };
 
-var pattern_load_path_input_data: TextInputData = .{
+var pattern_load_path_input_data: TextInput.Data = .{
     .text_buffer = &pattern_load_path_buf,
 };
 
@@ -755,7 +755,7 @@ pub const load_pattern_extension_dropdown: Dropdown = .{
     .element = .LoadPatternExtension,
 };
 
-var load_pattern_extension_dropdown_data: DropdownData = .{};
+var load_pattern_extension_dropdown_data: Dropdown.Data = .{};
 
 pub const load_pattern_button: Button = .{
     .rect = .{
@@ -808,7 +808,7 @@ pub const game_speed_slider: Slider = .{
     .element = .GameSpeedSlider,
 };
 
-var game_speed_slider_data: SliderData = .{
+var game_speed_slider_data: Slider.Data = .{
     .min = 1,
     .max = 240,
     .value = 60,
@@ -827,7 +827,7 @@ pub const game_speed_spinner: Spinner = .{
     .element = .GameSpeedSpinner,
 };
 
-var game_speed_spinner_data: SpinnerData = .{
+var game_speed_spinner_data: Spinner.Data = .{
     .min = 1,
     .max = std.math.maxInt(i32),
     .value = 60,
@@ -847,7 +847,7 @@ pub const game_type_dropdown: Dropdown = .{
     .element = .GameTypeDropdown,
 };
 
-var game_type_dropdown_data: DropdownData = .{
+var game_type_dropdown_data: Dropdown.Data = .{
     .selected = @intFromEnum(GameType.@"Static Array"),
 };
 
@@ -877,7 +877,7 @@ pub const dynamic_array_width_spinner: Spinner = .{
     .element = .DynamicArrayWidthSpinner,
 };
 
-var dynamic_array_width_spinner_data: SpinnerData = .{
+var dynamic_array_width_spinner_data: Spinner.Data = .{
     .min = 1,
     .max = std.math.maxInt(i32),
     .value = 256,
@@ -897,7 +897,7 @@ pub const dynamic_array_height_spinner: Spinner = .{
     .element = .DynamicArrayHeightSpinner,
 };
 
-var dynamic_array_height_spinner_data: SpinnerData = .{
+var dynamic_array_height_spinner_data: Spinner.Data = .{
     .min = 1,
     .max = std.math.maxInt(i32),
     .value = 256,
@@ -917,7 +917,7 @@ pub const dynamic_array_xwrap_dropdown: Dropdown = .{
     .element = .DynamicArrayXWrapDropdown,
 };
 
-var dynamic_array_xwrap_dropdown_data: DropdownData = .{
+var dynamic_array_xwrap_dropdown_data: Dropdown.Data = .{
     .selected = @intFromEnum(Wrap.Normal),
 };
 
@@ -934,6 +934,6 @@ pub const dynamic_array_ywrap_dropdown: Dropdown = .{
     .element = .DynamicArrayYWrapDropdown,
 };
 
-var dynamic_array_ywrap_dropdown_data: DropdownData = .{
+var dynamic_array_ywrap_dropdown_data: Dropdown.Data = .{
     .selected = @intFromEnum(Wrap.Normal),
 };
