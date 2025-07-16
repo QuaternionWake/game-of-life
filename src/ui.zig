@@ -108,7 +108,7 @@ pub fn grabElement() void {
         .Settings => _ = grabElementGroup(settings_elements),
         .Patterns => _ = grabElementGroup(pattern_list_elements),
         .GameTypes => if (!grabElementGroup(game_type_elements)) {
-            switch (game_type_dropdown.getSelected()) {
+            switch (game_type_dropdown.data.selected) {
                 .@"Static Array" => _ = grabElementGroup(static_game_elements),
                 .@"Dynamic Array" => _ = grabElementGroup(dynamic_game_elemnts),
                 .Hashset => _ = grabElementGroup(hashset_game_elements),
@@ -263,20 +263,16 @@ fn TabbedList(Tabs: type) type {
             return rl.checkCollisionPointRec(point, self.getRect());
         }
 
-        pub fn getTab(self: Self) Tabs {
-            return @enumFromInt(self.data.tab);
-        }
-
         pub fn getTabButtons(self: *const Self) TabButtons(Tabs) {
             const tab_count = @typeInfo(Tabs).@"enum".fields.len;
-            const tab_bar_width = 180; // FIXME: properly parametrize the ui structs so we can do this right
+            const tab_bar_width = self.getRect().width - 10;
             const tab_gap = 3;
             const tab_width = (tab_bar_width - tab_gap * (tab_count - 1)) / tab_count;
 
             return .{
                 .rect = .{
                     .parent = &self.rect,
-                    .x = .{ .left = 0 },
+                    .x = .{ .left = 5 },
                     .y = .{ .top = 0 },
                     .width = .{ .amount = tab_width },
                     .height = .{ .amount = self.tab_height },
@@ -303,25 +299,25 @@ fn TabbedList(Tabs: type) type {
 
         pub fn draw(self: Self, items: EnumArray(Tabs, [][*:0]const u8)) void {
             if (self.getTabButtons().draw()) |tab| {
-                self.data.tab = @intFromEnum(tab);
+                self.data.tab = tab;
             }
 
             var list_data_buf: List.Data = undefined;
-            self.getList(&list_data_buf).draw(items.get(self.getTab()));
-            self.data.scroll[self.data.tab] = list_data_buf.scroll;
+            self.getList(&list_data_buf).draw(items.get(self.data.tab));
+            self.data.scroll.getPtr(self.data.tab).* = list_data_buf.scroll;
             self.data.active = list_data_buf.active;
             self.data.focused = list_data_buf.focused;
         }
 
         const Data = struct {
-            scroll: []i32,
+            scroll: EnumArray(Tabs, i32) = .initFill(0),
             active: ?usize = null,
             focused: ?usize = null,
-            tab: usize = 0,
+            tab: Tabs = @enumFromInt(0),
 
-            pub fn getListData(self: Data, tab: usize) List.Data {
+            pub fn getListData(self: Data, tab: Tabs) List.Data {
                 return .{
-                    .scroll = self.scroll[tab],
+                    .scroll = self.scroll.get(tab),
                     .active = if (tab == self.tab) self.active else null,
                     .focused = if (tab == self.tab) self.focused else null,
                 };
@@ -497,10 +493,6 @@ fn Dropdown(Contents: type) type {
             return rl.checkCollisionPointRec(point, rect);
         }
 
-        pub fn getSelected(self: Self) Contents {
-            return @enumFromInt(self.data.selected);
-        }
-
         /// Returns true when value has changed
         pub fn draw(self: Self) bool {
             const fields = std.meta.fields(Contents);
@@ -520,7 +512,7 @@ fn Dropdown(Contents: type) type {
                 break :blk names;
             };
 
-            var selected_idx: i32 = @intCast(self.data.selected);
+            var selected_idx: i32 = @intFromEnum(self.data.selected);
 
             if (isHolding(self)) {
                 if (rg.dropdownBox(self.getRect(), &field_names, &selected_idx, self.data.editing) != 0) {
@@ -536,15 +528,15 @@ fn Dropdown(Contents: type) type {
                 rg.unlock();
             }
 
-            if (selected_idx != self.data.selected) {
-                self.data.selected = @intCast(selected_idx);
+            if (selected_idx != @intFromEnum(self.data.selected)) {
+                self.data.selected = @enumFromInt(selected_idx);
                 return true;
             }
             return false;
         }
 
         const Data = struct {
-            selected: usize = 0,
+            selected: Contents = @enumFromInt(0),
             editing: bool = false,
         };
     };
@@ -709,9 +701,7 @@ pub const pattern_list: TabbedList(Category) = .{
     .element = .PatternList,
 };
 
-var pattern_list_data: TabbedList(Category).Data = .{
-    .scroll = &pattern_list_scroll,
-};
+var pattern_list_data: TabbedList(Category).Data = .{};
 
 var pattern_list_scroll: [@typeInfo(Category).@"enum".fields.len]i32 = @splat(0);
 
@@ -865,9 +855,7 @@ pub const game_type_dropdown: Dropdown(GameType) = .{
     .element = .GameTypeDropdown,
 };
 
-var game_type_dropdown_data: Dropdown(GameType).Data = .{
-    .selected = @intFromEnum(GameType.@"Static Array"),
-};
+var game_type_dropdown_data: Dropdown(GameType).Data = .{};
 
 pub const dynamic_array_options_box: Container = .{
     .rect = .{
@@ -935,7 +923,7 @@ pub const dynamic_array_xwrap_dropdown: Dropdown(Wrap) = .{
 };
 
 var dynamic_array_xwrap_dropdown_data: Dropdown(Wrap).Data = .{
-    .selected = @intFromEnum(Wrap.Normal),
+    .selected = Wrap.Normal,
 };
 
 pub const dynamic_array_ywrap_dropdown: Dropdown(Wrap) = .{
@@ -951,5 +939,5 @@ pub const dynamic_array_ywrap_dropdown: Dropdown(Wrap) = .{
 };
 
 var dynamic_array_ywrap_dropdown_data: Dropdown(Wrap).Data = .{
-    .selected = @intFromEnum(Wrap.Normal),
+    .selected = Wrap.Normal,
 };

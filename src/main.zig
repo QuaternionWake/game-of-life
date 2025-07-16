@@ -162,7 +162,7 @@ pub fn main() !void {
             }
         }
         const pat = if (ui.pattern_list.data.active) |idx|
-            patterns.getCategory(ui.pattern_list.getTab()).getPatternRef(idx)
+            patterns.getCategory(ui.pattern_list.data.tab).getPatternRef(idx)
         else
             &clipboard;
         if (rl.isKeyPressed(.p)) blk: {
@@ -319,7 +319,7 @@ pub fn main() !void {
                     _ = ui.pattern_load_path_input.draw();
                     defer _ = ui.load_pattern_extension_dropdown.draw();
                     if (ui.load_pattern_button.draw()) load: {
-                        const format = ui.load_pattern_extension_dropdown.getSelected();
+                        const format = ui.load_pattern_extension_dropdown.data.selected;
                         const len = std.mem.indexOfSentinel(u8, 0, ui.pattern_load_path_input.data.text_buffer);
                         if (len == 0) break :load;
                         var filename = List(u8).initCapacity(ally, len) catch break :load;
@@ -350,7 +350,7 @@ pub fn main() !void {
                 },
                 .GameTypes => {
                     defer if (ui.game_type_dropdown.draw()) {
-                        gol = switch (ui.game_type_dropdown.getSelected()) {
+                        gol = switch (ui.game_type_dropdown.data.selected) {
                             .@"Static Array" => static_array_game.gol(),
                             .@"Dynamic Array" => dynamic_array_game.gol(),
                             .Hashset => hashset_game.gol(),
@@ -359,7 +359,7 @@ pub fn main() !void {
                         game_thread.message(.{ .change_game = gol });
                     };
 
-                    switch (ui.game_type_dropdown.getSelected()) {
+                    switch (ui.game_type_dropdown.data.selected) {
                         .@"Static Array" => {
                             // static array info/options
                         },
@@ -373,10 +373,10 @@ pub fn main() !void {
                                 dynamic_array_game.setYLen(@intCast(ui.dynamic_array_height_spinner.data.value));
                             }
                             if (ui.dynamic_array_ywrap_dropdown.draw()) {
-                                dynamic_array_game.setYWrap(ui.dynamic_array_ywrap_dropdown.getSelected());
+                                dynamic_array_game.setYWrap(ui.dynamic_array_ywrap_dropdown.data.selected);
                             }
                             if (ui.dynamic_array_xwrap_dropdown.draw()) {
-                                dynamic_array_game.setXWrap(ui.dynamic_array_xwrap_dropdown.getSelected());
+                                dynamic_array_game.setXWrap(ui.dynamic_array_xwrap_dropdown.data.selected);
                             }
                             const x_wrap_rect = ui.dynamic_array_xwrap_dropdown.rect.rlRect();
                             const y_wrap_rect = ui.dynamic_array_ywrap_dropdown.rect.rlRect();
