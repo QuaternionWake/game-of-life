@@ -333,11 +333,13 @@ const Container = struct {
     type: enum { Panel, GroupBox },
     element: GuiElement,
 
-    pub fn getRect(self: Container) RlRect {
+    const Self = @This();
+
+    pub fn getRect(self: Self) RlRect {
         return self.rect.rlRect();
     }
 
-    pub fn containsPoint(self: Container, point: Vec2) bool {
+    pub fn containsPoint(self: Self, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
 };
@@ -347,11 +349,13 @@ const Button = struct {
     text: [:0]const u8,
     element: GuiElement,
 
-    pub fn getRect(self: Button) RlRect {
+    const Self = @This();
+
+    pub fn getRect(self: Self) RlRect {
         return self.rect.rlRect();
     }
 
-    pub fn containsPoint(self: Button, point: Vec2) bool {
+    pub fn containsPoint(self: Self, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
 };
@@ -361,11 +365,13 @@ const List = struct {
     data: *Data,
     element: GuiElement,
 
-    pub fn getRect(self: List) RlRect {
+    const Self = @This();
+
+    pub fn getRect(self: Self) RlRect {
         return self.rect.rlRect();
     }
 
-    pub fn containsPoint(self: List, point: Vec2) bool {
+    pub fn containsPoint(self: Self, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
 
@@ -383,19 +389,21 @@ fn TabbedList(Tabs: type) type {
         data: *Data,
         element: GuiElement,
 
-        pub fn getRect(self: TabbedList(Tabs)) RlRect {
+        const Self = @This();
+
+        pub fn getRect(self: Self) RlRect {
             return self.rect.rlRect();
         }
 
-        pub fn containsPoint(self: TabbedList(Tabs), point: Vec2) bool {
+        pub fn containsPoint(self: Self, point: Vec2) bool {
             return rl.checkCollisionPointRec(point, self.getRect());
         }
 
-        pub fn getTab(self: TabbedList(Tabs)) Tabs {
+        pub fn getTab(self: Self) Tabs {
             return @enumFromInt(self.data.tab);
         }
 
-        pub fn getTabButtons(self: TabbedList(Tabs)) TabButtons(Tabs) {
+        pub fn getTabButtons(self: Self) TabButtons(Tabs) {
             const tab_count = @typeInfo(Tabs).@"enum".fields.len;
             const tab_bar_width = 180; // FIXME: properly parametrize the ui structs so we can do this right
             const tab_gap = 3;
@@ -414,7 +422,7 @@ fn TabbedList(Tabs: type) type {
             };
         }
 
-        pub fn getListView(self: TabbedList(Tabs), data_buf: *List.Data) List {
+        pub fn getListView(self: Self, data_buf: *List.Data) List {
             data_buf.* = self.data.getListData(self.data.tab);
             return .{
                 .rect = .{
@@ -452,11 +460,13 @@ fn TabButtons(Tabs: type) type {
         offset: Vec2,
         element: GuiElement,
 
-        pub fn getRect(self: TabButtons(Tabs)) RlRect {
+        const Self = @This();
+
+        pub fn getRect(self: Self) RlRect {
             return self.rect.rlRect();
         }
 
-        pub fn containsPoint(self: TabButtons(Tabs), point: Vec2) bool {
+        pub fn containsPoint(self: Self, point: Vec2) bool {
             const len = std.meta.fields(Tabs).len;
             var rect = self.getRect();
 
@@ -480,11 +490,13 @@ const Slider = struct {
     data: *Data,
     element: GuiElement,
 
-    pub fn getRect(self: Slider) RlRect {
+    const Self = @This();
+
+    pub fn getRect(self: Self) RlRect {
         return self.rect.rlRect();
     }
 
-    pub fn containsPoint(self: Slider, point: Vec2) bool {
+    pub fn containsPoint(self: Self, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
 
@@ -501,11 +513,13 @@ const Spinner = struct {
     data: *Data,
     element: GuiElement,
 
-    pub fn getRect(self: Spinner) RlRect {
+    const Self = @This();
+
+    pub fn getRect(self: Self) RlRect {
         return self.rect.rlRect();
     }
 
-    pub fn containsPoint(self: Spinner, point: Vec2) bool {
+    pub fn containsPoint(self: Self, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
 
@@ -523,11 +537,13 @@ fn Dropdown(Contents: type) type {
         data: *Data,
         element: GuiElement,
 
-        pub fn getRect(self: Dropdown(Contents)) RlRect {
+        const Self = @This();
+
+        pub fn getRect(self: Self) RlRect {
             return self.rect.rlRect();
         }
 
-        pub fn containsPoint(self: Dropdown(Contents), point: Vec2) bool {
+        pub fn containsPoint(self: Self, point: Vec2) bool {
             var rect = self.getRect();
             if (self.data.editing) {
                 rect.height += @floatFromInt(rg.getStyle(.dropdownbox, .{ .default = .text_spacing }));
@@ -538,7 +554,7 @@ fn Dropdown(Contents: type) type {
             return rl.checkCollisionPointRec(point, rect);
         }
 
-        pub fn getSelected(self: Dropdown(Contents)) Contents {
+        pub fn getSelected(self: Self) Contents {
             return @enumFromInt(self.data.selected);
         }
 
@@ -554,11 +570,13 @@ const TextInput = struct {
     data: *Data,
     element: GuiElement,
 
-    pub fn getRect(self: TextInput) RlRect {
+    const Self = @This();
+
+    pub fn getRect(self: Self) RlRect {
         return self.rect.rlRect();
     }
 
-    pub fn containsPoint(self: TextInput, point: Vec2) bool {
+    pub fn containsPoint(self: Self, point: Vec2) bool {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
 
@@ -571,6 +589,8 @@ const TextInput = struct {
 // dummy struct for consistency
 const Grid = struct {
     element: GuiElement = .Grid,
+
+    const Self = @This();
 
     pub fn getRect() RlRect {
         return RlRect.init(0, 0, @floatFromInt(rl.getScreenWidth()), @floatFromInt(rl.getScreenHeight()));
