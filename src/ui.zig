@@ -266,7 +266,13 @@ fn TabbedList(Tabs: type) type {
         }
 
         pub fn containsPoint(self: Self, point: Vec2) bool {
-            return rl.checkCollisionPointRec(point, self.getRect());
+            var tabs_data_buf: TabButtons(Tabs).Data = undefined;
+            var list_data_buf: List.Data = undefined;
+
+            const tabs = self.getTabButtons(&tabs_data_buf);
+            const list = self.getList(&list_data_buf);
+
+            return tabs.containsPoint(point) or list.containsPoint(point);
         }
 
         pub fn getTabButtons(self: *const Self, data_buf: *TabButtons(Tabs).Data) TabButtons(Tabs) {
