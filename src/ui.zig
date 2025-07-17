@@ -374,6 +374,12 @@ fn TabButtons(Tabs: type) type {
 
             var result = false;
             inline for (fields) |field| {
+                if ((@as(Tabs, @enumFromInt(field.value))) == self.data.selected) {
+                    rg.setState(@intFromEnum(rg.State.pressed));
+                }
+                defer if (@as(Tabs, @enumFromInt(field.value)) == self.data.selected) {
+                    rg.setState(@intFromEnum(rg.State.normal));
+                };
                 if (isHolding(self)) {
                     if (rg.button(rect, field.name)) {
                         self.data.selected = @enumFromInt(field.value);
