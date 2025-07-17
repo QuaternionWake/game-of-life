@@ -303,9 +303,7 @@ pub fn main() !void {
                             } else null;
                     }
                     if (ui.pattern_name_input.draw()) |text| {
-                        const len = std.mem.indexOfSentinel(u8, 0, text);
-                        std.debug.print("{d}, {d}\n", .{ len, text.len });
-                        clipboard.setName(text[0..len]) catch {};
+                        clipboard.setName(text) catch {};
                     }
                     if (ui.save_pattern_button.draw()) save: {
                         if (clipboard.name.len == 0) break :save;
@@ -328,11 +326,9 @@ pub fn main() !void {
                     defer _ = ui.load_pattern_extension_dropdown.draw();
                     if (ui.load_pattern_button.draw()) load: {
                         const format = ui.load_pattern_extension_dropdown.data.selected;
-                        const len = std.mem.indexOfSentinel(u8, 0, ui.pattern_load_path_input.data.text_buffer);
-                        if (len == 0) break :load;
-                        var filename = List(u8).initCapacity(ally, len) catch break :load;
+                        var filename = List(u8).init(ally);
                         defer filename.deinit();
-                        filename.appendSliceAssumeCapacity(ui.pattern_load_path_input.data.text_buffer[0..len]);
+                        filename.appendSlice(ui.pattern_load_path_input.data.textSlice()) catch break :load;
                         filename.appendSlice(format.toString()) catch break :load;
                         const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :load;
                         defer ally.free(path);

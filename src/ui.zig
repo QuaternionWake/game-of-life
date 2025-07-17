@@ -611,44 +611,51 @@ fn Dropdown(Contents: type) type {
     };
 }
 
-const TextInput = struct {
-    rect: Rect,
-    data: *Data,
-    element: GuiElement,
+fn TextInput(max_len: usize) type {
+    return struct {
+        rect: Rect,
+        data: *Data,
+        element: GuiElement,
 
-    const Self = @This();
+        const Self = @This();
 
-    pub fn getRect(self: Self) RlRect {
-        return self.rect.rlRect();
-    }
-
-    pub fn containsPoint(self: Self, point: Vec2) bool {
-        return rl.checkCollisionPointRec(point, self.getRect());
-    }
-
-    /// Returns value when editing stops.
-    pub fn draw(self: Self) ?[:0]u8 {
-        const previous_editing = self.data.editing;
-        if (self.data.editing or canGrab(self)) {
-            if (rg.textBox(self.getRect(), self.data.text_buffer, @intCast(self.data.text_buffer.len - 1), self.data.editing)) {
-                self.data.editing = !self.data.editing;
-            }
-        } else {
-            rg.lock();
-            _ = rg.textBox(self.getRect(), self.data.text_buffer, @intCast(self.data.text_buffer.len - 1), self.data.editing);
-            rg.unlock();
+        pub fn getRect(self: Self) RlRect {
+            return self.rect.rlRect();
         }
-        return if (previous_editing and !self.data.editing)
-            self.data.text_buffer
-        else
-            null;
-    }
 
-    const Data = struct {
-        text_buffer: [:0]u8,
-        editing: bool = false,
+        pub fn containsPoint(self: Self, point: Vec2) bool {
+            return rl.checkCollisionPointRec(point, self.getRect());
+        }
+
+        /// Returns value when editing stops.
+        pub fn draw(self: Self) ?[:0]const u8 {
+            const previous_editing = self.data.editing;
+            if (self.data.editing or canGrab(self)) {
+                if (rg.textBox(self.getRect(), &self.data.text, @intCast(self.data.text.len + 1), self.data.editing)) {
+                    self.data.editing = !self.data.editing;
+                }
+            } else {
+                rg.lock();
+                _ = rg.textBox(self.getRect(), &self.data.text, @intCast(self.data.text.len + 1), self.data.editing);
+                rg.unlock();
+            }
+            return if (previous_editing and !self.data.editing)
+                self.data.textSlice()
+            else
+                null;
+        }
+
+        const Data = struct {
+            text: [max_len:0]u8 = @splat(0),
+            editing: bool = false,
+
+            pub fn textSlice(self: *Data) [:0]const u8 {
+                const end = std.mem.indexOfSentinel(u8, 0, &self.text);
+                return self.text[0..end :0];
+            }
+        };
     };
-};
+}
 
 // dummy struct for consistency
 const Grid = struct {
@@ -779,7 +786,7 @@ var pattern_list_data: TabbedList(Category).Data = .{};
 
 var pattern_list_scroll: [@typeInfo(Category).@"enum".fields.len]i32 = @splat(0);
 
-pub const pattern_name_input: TextInput = .{
+pub const pattern_name_input: TextInput(32) = .{
     .rect = .{
         .parent = &sidebar.rect,
         .x = .{ .left = 20 },
@@ -791,11 +798,7 @@ pub const pattern_name_input: TextInput = .{
     .element = .PatternNameInput,
 };
 
-var pattern_name_input_data: TextInput.Data = .{
-    .text_buffer = &pattern_name_buf,
-};
-
-var pattern_name_buf: [32:0]u8 = .{0} ** 32;
+var pattern_name_input_data: TextInput(32).Data = .{};
 
 pub const save_pattern_button: Button = .{
     .rect = .{
@@ -809,7 +812,7 @@ pub const save_pattern_button: Button = .{
     .element = .SavePatternButton,
 };
 
-pub const pattern_load_path_input: TextInput = .{
+pub const pattern_load_path_input: TextInput(32) = .{
     .rect = .{
         .parent = &sidebar.rect,
         .x = .{ .left = 20 },
@@ -821,11 +824,7 @@ pub const pattern_load_path_input: TextInput = .{
     .element = .LoadPathInput,
 };
 
-var pattern_load_path_input_data: TextInput.Data = .{
-    .text_buffer = &pattern_load_path_buf,
-};
-
-var pattern_load_path_buf: [32:0]u8 = .{0} ** 32;
+var pattern_load_path_input_data: TextInput(32).Data = .{};
 
 pub const load_pattern_extension_dropdown: Dropdown(LoadableFormats) = .{
     .rect = .{
