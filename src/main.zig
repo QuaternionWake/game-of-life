@@ -295,12 +295,11 @@ pub fn main() !void {
                     defer for (names_list.values) |name| {
                         ally.free(name);
                     };
-                    if (ui.pattern_list.draw(names_list)) |idx| {
-                        library_index =
-                            if (idx.index) |active| .{
-                                .category = idx.tab,
-                                .index = active,
-                            } else null;
+                    if (ui.pattern_list.draw(names_list)) |index| {
+                        library_index = if (index) |idx| .{
+                            .category = idx.tab,
+                            .index = idx.index,
+                        } else null;
                     }
                     if (ui.pattern_name_input.draw()) |text| {
                         clipboard.setName(text) catch {};

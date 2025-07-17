@@ -147,7 +147,9 @@ pub fn isHolding(e: anytype) bool {
 }
 
 fn nullOrNew(old: anytype, new: anytype) ?@TypeOf(new) {
-    return if (old == new) null else new;
+    const old_bytes = std.mem.asBytes(&old);
+    const new_bytes = std.mem.asBytes(&new);
+    return if (std.mem.eql(u8, old_bytes, new_bytes)) null else new;
 }
 
 const Container = struct {
@@ -308,26 +310,25 @@ fn TabbedList(Tabs: type) type {
             };
         }
 
-        pub fn draw(self: Self, items: EnumArray(Tabs, [][*:0]const u8)) ?Index {
+        pub fn draw(self: Self, items: EnumArray(Tabs, [][*:0]const u8)) ??Index {
             var tabs_data_buf: TabButtons(Tabs).Data = undefined;
             if (self.getTabButtons(&tabs_data_buf).draw()) |tab| {
                 self.data.open_tab = tab;
             }
 
             var list_data_buf: List.Data = undefined;
-            var result: ?Index = null;
+            const old_index = self.data.getIndex();
             if (self.getList(&list_data_buf).draw(items.get(self.data.open_tab))) |active| {
                 self.data.selected_tab = self.data.open_tab;
                 self.data.active = active;
-                result = .{ .tab = self.data.selected_tab, .index = active };
             }
             self.data.scroll.getPtr(self.data.open_tab).* = list_data_buf.scroll;
-            return result;
+            return nullOrNew(old_index, self.data.getIndex());
         }
 
         const Index = struct {
             tab: Tabs,
-            index: ?usize,
+            index: usize,
         };
 
         const Data = struct {
@@ -347,6 +348,13 @@ fn TabbedList(Tabs: type) type {
                     .scroll = self.scroll.get(self.open_tab),
                     .active = if (self.open_tab == self.selected_tab) self.active else null,
                 };
+            }
+
+            pub fn getIndex(self: Data) ?Index {
+                return if (self.active) |idx| .{
+                    .tab = self.selected_tab,
+                    .index = idx,
+                } else null;
             }
         };
     };
