@@ -52,7 +52,6 @@ pub const SidebarTabs = enum {
 pub var held_element: ?GuiElement = null;
 pub var previous_held_element: ?GuiElement = null;
 pub var hovered_element: GuiElement = .Grid;
-pub var sidebar_tab: SidebarTabs = .Settings;
 
 const top_level_elements = .{
     sidebar_tab_buttons,
@@ -104,7 +103,7 @@ pub fn grabElement() void {
     previous_held_element = held_element;
     _ = grabElementGroup(top_level_elements);
 
-    switch (sidebar_tab) {
+    switch (sidebar_tab_buttons.data.selected) {
         .Settings => _ = grabElementGroup(settings_elements),
         .Patterns => _ = grabElementGroup(pattern_list_elements),
         .GameTypes => if (!grabElementGroup(game_type_elements)) {
@@ -251,6 +250,8 @@ fn TabbedList(Tabs: type) type {
     return struct {
         rect: Rect,
         tab_height: f32,
+        tab_edge_padding: f32,
+        tab_inner_padding: f32,
         data: *Data,
         element: GuiElement,
 
@@ -264,21 +265,20 @@ fn TabbedList(Tabs: type) type {
             return rl.checkCollisionPointRec(point, self.getRect());
         }
 
-        pub fn getTabButtons(self: *const Self) TabButtons(Tabs) {
-            const tab_count = @typeInfo(Tabs).@"enum".fields.len;
-            const tab_bar_width = self.getRect().width - 10;
-            const tab_gap = 3;
-            const tab_width = (tab_bar_width - tab_gap * (tab_count - 1)) / tab_count;
-
+        pub fn getTabButtons(self: *const Self, data_buf: *TabButtons(Tabs).Data) TabButtons(Tabs) {
+            data_buf.* = self.data.getTabButtonsData();
             return .{
                 .rect = .{
                     .parent = &self.rect,
-                    .x = .{ .left = 5 },
+                    .x = .{ .left = 0 },
                     .y = .{ .top = 0 },
-                    .width = .{ .amount = tab_width },
+                    .width = .{ .relative = 0 },
                     .height = .{ .amount = self.tab_height },
                 },
-                .offset = Vec2.init(tab_width + tab_gap, 0),
+                .direction = .Horizontal,
+                .edge_padding = self.tab_edge_padding,
+                .inner_padding = self.tab_inner_padding,
+                .data = data_buf,
                 .element = self.element,
             };
         }
@@ -299,8 +299,9 @@ fn TabbedList(Tabs: type) type {
         }
 
         pub fn draw(self: Self, items: EnumArray(Tabs, [][*:0]const u8)) bool {
-            if (self.getTabButtons().draw()) |tab| {
-                self.data.open_tab = tab;
+            var tabs_data_buf: TabButtons(Tabs).Data = undefined;
+            if (self.getTabButtons(&tabs_data_buf).draw()) {
+                self.data.open_tab = tabs_data_buf.selected;
             }
 
             var list_data_buf: List.Data = undefined;
@@ -320,6 +321,12 @@ fn TabbedList(Tabs: type) type {
             selected_tab: Tabs = @enumFromInt(0),
             open_tab: Tabs = @enumFromInt(0),
 
+            pub fn getTabButtonsData(self: Data) TabButtons(Tabs).Data {
+                return .{
+                    .selected = self.open_tab,
+                };
+            }
+
             pub fn getListData(self: Data) List.Data {
                 return .{
                     .scroll = self.scroll.get(self.open_tab),
@@ -333,7 +340,10 @@ fn TabbedList(Tabs: type) type {
 fn TabButtons(Tabs: type) type {
     return struct {
         rect: Rect,
-        offset: Vec2,
+        direction: enum { Vertical, Horizontal },
+        edge_padding: f32,
+        inner_padding: f32,
+        data: *Data,
         element: GuiElement,
 
         const Self = @This();
@@ -344,29 +354,30 @@ fn TabButtons(Tabs: type) type {
 
         pub fn containsPoint(self: Self, point: Vec2) bool {
             const len = std.meta.fields(Tabs).len;
-            var rect = self.getRect();
+            var rect, const offset = self.getRectAndOffset();
 
             for (0..len) |_| {
                 if (rl.checkCollisionPointRec(point, rect)) {
                     return true;
                 }
-                rect.x += self.offset.x;
-                rect.y += self.offset.y;
+                rect.x += offset.x;
+                rect.y += offset.y;
             }
 
             return false;
         }
 
-        pub fn draw(self: Self) ?Tabs {
-            var rect = self.getRect();
+        pub fn draw(self: Self) bool {
+            var rect, const offset = self.getRectAndOffset();
 
             const fields = std.meta.fields(Tabs);
 
-            var result: ?Tabs = null;
+            var result = false;
             inline for (fields) |field| {
                 if (isHolding(self)) {
                     if (rg.button(rect, field.name)) {
-                        result = @enumFromInt(field.value);
+                        self.data.selected = @enumFromInt(field.value);
+                        result = true;
                     }
                 } else if (canGrab(self)) {
                     _ = rg.button(rect, field.name);
@@ -376,11 +387,46 @@ fn TabButtons(Tabs: type) type {
                     rg.unlock();
                 }
 
-                rect.x += self.offset.x;
-                rect.y += self.offset.y;
+                rect.x += offset.x;
+                rect.y += offset.y;
             }
             return result;
         }
+
+        fn getRectAndOffset(self: Self) struct { RlRect, Vec2 } {
+            const rect = self.getRect();
+
+            const fields = std.meta.fields(Tabs);
+            const len = fields.len;
+            const btn_rect = blk: {
+                const width = switch (self.direction) {
+                    .Horizontal => (rect.width - 2 * self.edge_padding + self.inner_padding) / len - self.inner_padding,
+                    .Vertical => rect.width,
+                };
+                const height = switch (self.direction) {
+                    .Vertical => (rect.height - 2 * self.edge_padding + self.inner_padding) / len - self.inner_padding,
+                    .Horizontal => rect.height,
+                };
+                const x = switch (self.direction) {
+                    .Horizontal => rect.x + self.edge_padding,
+                    .Vertical => rect.x,
+                };
+                const y = switch (self.direction) {
+                    .Vertical => rect.y + self.edge_padding,
+                    .Horizontal => rect.y,
+                };
+                break :blk RlRect.init(x, y, width, height);
+            };
+            const rect_offset = switch (self.direction) {
+                .Horizontal => Vec2.init(btn_rect.width + self.inner_padding, 0),
+                .Vertical => Vec2.init(0, btn_rect.height + self.inner_padding),
+            };
+            return .{ btn_rect, rect_offset };
+        }
+
+        const Data = struct {
+            selected: Tabs = @enumFromInt(0),
+        };
     };
 }
 
@@ -701,6 +747,8 @@ pub const pattern_list: TabbedList(Category) = .{
         .height = .{ .amount = 250 },
     },
     .tab_height = 20,
+    .tab_edge_padding = 5,
+    .tab_inner_padding = 3,
     .data = &pattern_list_data,
     .element = .PatternList,
 };
@@ -801,11 +849,16 @@ pub const sidebar_tab_buttons: TabButtons(SidebarTabs) = .{
         .x = .{ .left = -30 },
         .y = .{ .top = 30 },
         .width = .{ .amount = 32 },
-        .height = .{ .amount = 30 },
+        .height = .{ .amount = 100 },
     },
-    .offset = Vec2.init(0, 35),
+    .direction = .Vertical,
+    .edge_padding = 0,
+    .inner_padding = 5,
+    .data = &sidebar_tab_buttons_data,
     .element = .SidebarTabButtons,
 };
+
+var sidebar_tab_buttons_data: TabButtons(SidebarTabs).Data = .{};
 
 pub const game_speed_slider: Slider = .{
     .rect = .{

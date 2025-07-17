@@ -258,12 +258,10 @@ pub fn main() !void {
             }
             camera.end();
 
-            if (ui.sidebar_tab_buttons.draw()) |tab| {
-                ui.sidebar_tab = tab;
-            }
+            _ = ui.sidebar_tab_buttons.draw();
             ui.sidebar.draw();
 
-            switch (ui.sidebar_tab) {
+            switch (ui.sidebar_tab_buttons.data.selected) {
                 .Settings => {
                     ui.controls.draw();
                     if (ui.clear_button.draw()) game_thread.message(.{ .clear = {} });
