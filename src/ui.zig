@@ -17,6 +17,8 @@ pub const GuiElement = enum {
     Grid,
     Sidebar,
 
+    HideSiddebarButton,
+    ShowSiddebarButton,
     SidebarTabButtons,
 
     ClearButton,
@@ -52,9 +54,16 @@ pub const SidebarTabs = enum {
 pub var held_element: ?GuiElement = null;
 pub var previous_held_element: ?GuiElement = null;
 pub var hovered_element: GuiElement = .Grid;
+pub var sidebar_visible: bool = true;
+
+const sidebar_hidden_elements = .{
+    show_sidebar_button,
+    grid,
+};
 
 const top_level_elements = .{
     sidebar_tab_buttons,
+    hide_sidebar_button,
     sidebar,
     grid,
 };
@@ -101,19 +110,23 @@ const hashfast_game_elements = .{};
 
 pub fn grabElement() void {
     previous_held_element = held_element;
-    _ = grabElementGroup(top_level_elements);
+    if (!sidebar_visible) {
+        _ = grabElementGroup(sidebar_hidden_elements);
+    } else {
+        _ = grabElementGroup(top_level_elements);
 
-    switch (sidebar_tab_buttons.data.selected) {
-        .Settings => _ = grabElementGroup(settings_elements),
-        .Patterns => _ = grabElementGroup(pattern_list_elements),
-        .GameTypes => if (!grabElementGroup(game_type_elements)) {
-            switch (game_type_dropdown.data.selected) {
-                .@"Static Array" => _ = grabElementGroup(static_game_elements),
-                .@"Dynamic Array" => _ = grabElementGroup(dynamic_game_elemnts),
-                .Hashset => _ = grabElementGroup(hashset_game_elements),
-                .@"Hashset (faster (sometimes))" => _ = grabElementGroup(hashfast_game_elements),
-            }
-        },
+        switch (sidebar_tab_buttons.data.selected) {
+            .Settings => _ = grabElementGroup(settings_elements),
+            .Patterns => _ = grabElementGroup(pattern_list_elements),
+            .GameTypes => if (!grabElementGroup(game_type_elements)) {
+                switch (game_type_dropdown.data.selected) {
+                    .@"Static Array" => _ = grabElementGroup(static_game_elements),
+                    .@"Dynamic Array" => _ = grabElementGroup(dynamic_game_elemnts),
+                    .Hashset => _ = grabElementGroup(hashset_game_elements),
+                    .@"Hashset (faster (sometimes))" => _ = grabElementGroup(hashfast_game_elements),
+                }
+            },
+        }
     }
 
     if (rl.isMouseButtonDown(.left) or rl.isMouseButtonDown(.right)) {
@@ -872,11 +885,35 @@ pub const load_from_clipboard_button: Button = .{
     .element = .LoadFromClipboardButton,
 };
 
+pub const hide_sidebar_button: Button = .{
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .left = -20 },
+        .y = .{ .top = 8 },
+        .width = .{ .amount = 22 },
+        .height = .{ .amount = 22 },
+    },
+    .text = "#115#",
+    .element = .HideSiddebarButton,
+};
+
+pub const show_sidebar_button: Button = .{
+    .rect = .{
+        .parent = null,
+        .x = .{ .right = 2 },
+        .y = .{ .top = 8 },
+        .width = .{ .amount = 22 },
+        .height = .{ .amount = 22 },
+    },
+    .text = "#114#",
+    .element = .ShowSiddebarButton,
+};
+
 pub const sidebar_tab_buttons: TabButtons(SidebarTabs) = .{
     .rect = .{
         .parent = &sidebar.rect,
         .x = .{ .left = -30 },
-        .y = .{ .top = 30 },
+        .y = .{ .top = 40 },
         .width = .{ .amount = 32 },
         .height = .{ .amount = 100 },
     },

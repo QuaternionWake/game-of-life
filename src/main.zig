@@ -258,142 +258,147 @@ pub fn main() !void {
             }
             camera.end();
 
-            _ = ui.sidebar_tab_buttons.draw();
-            ui.sidebar.draw();
+            if (ui.sidebar_visible) {
+                if (ui.hide_sidebar_button.draw()) ui.sidebar_visible = false;
+                _ = ui.sidebar_tab_buttons.draw();
+                ui.sidebar.draw();
 
-            switch (ui.sidebar_tab_buttons.data.selected) {
-                .Settings => {
-                    ui.controls.draw();
-                    if (ui.clear_button.draw()) game_thread.message(.{ .clear = {} });
-                    if (ui.randomize_button.draw()) game_thread.message(.{ .randomize = {} });
-                    if (game_thread.game_paused) {
-                        if (ui.unpause_button.draw()) game_thread.message(.{ .unpause = {} });
-                        if (ui.step_button.draw()) game_thread.message(.{ .step = {} });
-                    } else {
-                        if (ui.pause_button.draw()) game_thread.message(.{ .pause = {} });
-                        rg.setState(@intFromEnum(rg.State.disabled));
-                        if (ui.step_button.draw()) game_thread.message(.{ .step = {} });
-                        rg.setState(@intFromEnum(rg.State.normal));
-                    }
+                switch (ui.sidebar_tab_buttons.data.selected) {
+                    .Settings => {
+                        ui.controls.draw();
+                        if (ui.clear_button.draw()) game_thread.message(.{ .clear = {} });
+                        if (ui.randomize_button.draw()) game_thread.message(.{ .randomize = {} });
+                        if (game_thread.game_paused) {
+                            if (ui.unpause_button.draw()) game_thread.message(.{ .unpause = {} });
+                            if (ui.step_button.draw()) game_thread.message(.{ .step = {} });
+                        } else {
+                            if (ui.pause_button.draw()) game_thread.message(.{ .pause = {} });
+                            rg.setState(@intFromEnum(rg.State.disabled));
+                            if (ui.step_button.draw()) game_thread.message(.{ .step = {} });
+                            rg.setState(@intFromEnum(rg.State.normal));
+                        }
 
-                    ui.game_speed_box.draw();
-                    if (ui.game_speed_slider.draw()) |val| {
-                        game_speed = @intFromFloat(val);
-                        ui.game_speed_spinner.data.value = @intCast(game_speed);
-                    }
-                    if (ui.game_speed_spinner.draw(true)) |val| {
-                        game_speed = @intCast(val);
-                        ui.game_speed_slider.data.value = math.clamp(
-                            @as(f32, @floatFromInt(game_speed)),
-                            ui.game_speed_slider.data.min,
-                            ui.game_speed_slider.data.max,
-                        );
-                    }
-                },
-                .Patterns => blk: {
-                    const names_list = patterns.getPatternNames(ally) catch break :blk;
-                    defer for (names_list.values) |name| {
-                        ally.free(name);
-                    };
-                    if (ui.pattern_list.draw(names_list)) |index| {
-                        library_index = if (index) |idx| .{
-                            .category = idx.tab,
-                            .index = idx.index,
-                        } else null;
-                    }
-                    if (ui.pattern_name_input.draw()) |text| {
-                        clipboard.setName(text) catch {};
-                    }
-                    if (ui.save_pattern_button.draw()) save: {
-                        if (clipboard.name.len == 0) break :save;
-                        var filename = List(u8).initCapacity(ally, clipboard.name.len + 4) catch break :save;
-                        defer filename.deinit();
-                        filename.appendSliceAssumeCapacity(clipboard.name);
-                        filename.appendSliceAssumeCapacity(".zon");
-                        const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :save;
-                        defer ally.free(path);
-                        std.fs.makeDirAbsolute(path) catch |err| if (err != error.PathAlreadyExists) break :save;
-                        var dir = std.fs.openDirAbsolute(path, .{}) catch break :save;
-                        defer dir.close();
-                        const file = dir.createFile(filename.items, .{}) catch break :save;
-                        defer file.close();
-                        const zon = file_formats.toZon(clipboard, ally) catch break :save;
-                        defer ally.free(zon);
-                        _ = file.write(zon) catch break :save;
-                    }
-                    _ = ui.pattern_load_path_input.draw();
-                    defer _ = ui.load_pattern_extension_dropdown.draw();
-                    if (ui.load_pattern_button.draw()) load: {
-                        const format = ui.load_pattern_extension_dropdown.data.selected;
-                        var filename = List(u8).init(ally);
-                        defer filename.deinit();
-                        filename.appendSlice(ui.pattern_load_path_input.data.textSlice()) catch break :load;
-                        filename.appendSlice(format.toString()) catch break :load;
-                        const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :load;
-                        defer ally.free(path);
-                        var dir = std.fs.openDirAbsolute(path, .{}) catch break :load;
-                        defer dir.close();
-                        const file = dir.openFile(filename.items, .{}) catch break :load;
-                        defer file.close();
-                        const string = file.readToEndAllocOptions(ally, math.maxInt(usize), null, @alignOf(u8), 0) catch break :load;
-                        defer ally.free(string);
-                        const new_pat = switch (format) {
-                            .Zon => file_formats.fromZon(string, ally) catch break :load,
-                            .Rle => file_formats.fromRle(string, ally) catch break :load,
+                        ui.game_speed_box.draw();
+                        if (ui.game_speed_slider.draw()) |val| {
+                            game_speed = @intFromFloat(val);
+                            ui.game_speed_spinner.data.value = @intCast(game_speed);
+                        }
+                        if (ui.game_speed_spinner.draw(true)) |val| {
+                            game_speed = @intCast(val);
+                            ui.game_speed_slider.data.value = math.clamp(
+                                @as(f32, @floatFromInt(game_speed)),
+                                ui.game_speed_slider.data.min,
+                                ui.game_speed_slider.data.max,
+                            );
+                        }
+                    },
+                    .Patterns => blk: {
+                        const names_list = patterns.getPatternNames(ally) catch break :blk;
+                        defer for (names_list.values) |name| {
+                            ally.free(name);
                         };
-                        clipboard.deinit();
-                        clipboard = new_pat;
-                    }
-                    if (ui.load_from_clipboard_button.draw()) clip: {
-                        const str = rl.getClipboardText();
-                        const new_pat = file_formats.fromRle(str, ally) catch break :clip;
-                        clipboard.deinit();
-                        clipboard = new_pat;
-                    }
-                },
-                .GameTypes => {
-                    defer if (ui.game_type_dropdown.draw()) |sel| {
-                        gol = switch (sel) {
-                            .@"Static Array" => static_array_game.gol(),
-                            .@"Dynamic Array" => dynamic_array_game.gol(),
-                            .Hashset => hashset_game.gol(),
-                            .@"Hashset (faster (sometimes))" => hashfast_game.gol(),
+                        if (ui.pattern_list.draw(names_list)) |index| {
+                            library_index = if (index) |idx| .{
+                                .category = idx.tab,
+                                .index = idx.index,
+                            } else null;
+                        }
+                        if (ui.pattern_name_input.draw()) |text| {
+                            clipboard.setName(text) catch {};
+                        }
+                        if (ui.save_pattern_button.draw()) save: {
+                            if (clipboard.name.len == 0) break :save;
+                            var filename = List(u8).initCapacity(ally, clipboard.name.len + 4) catch break :save;
+                            defer filename.deinit();
+                            filename.appendSliceAssumeCapacity(clipboard.name);
+                            filename.appendSliceAssumeCapacity(".zon");
+                            const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :save;
+                            defer ally.free(path);
+                            std.fs.makeDirAbsolute(path) catch |err| if (err != error.PathAlreadyExists) break :save;
+                            var dir = std.fs.openDirAbsolute(path, .{}) catch break :save;
+                            defer dir.close();
+                            const file = dir.createFile(filename.items, .{}) catch break :save;
+                            defer file.close();
+                            const zon = file_formats.toZon(clipboard, ally) catch break :save;
+                            defer ally.free(zon);
+                            _ = file.write(zon) catch break :save;
+                        }
+                        _ = ui.pattern_load_path_input.draw();
+                        defer _ = ui.load_pattern_extension_dropdown.draw();
+                        if (ui.load_pattern_button.draw()) load: {
+                            const format = ui.load_pattern_extension_dropdown.data.selected;
+                            var filename = List(u8).init(ally);
+                            defer filename.deinit();
+                            filename.appendSlice(ui.pattern_load_path_input.data.textSlice()) catch break :load;
+                            filename.appendSlice(format.toString()) catch break :load;
+                            const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :load;
+                            defer ally.free(path);
+                            var dir = std.fs.openDirAbsolute(path, .{}) catch break :load;
+                            defer dir.close();
+                            const file = dir.openFile(filename.items, .{}) catch break :load;
+                            defer file.close();
+                            const string = file.readToEndAllocOptions(ally, math.maxInt(usize), null, @alignOf(u8), 0) catch break :load;
+                            defer ally.free(string);
+                            const new_pat = switch (format) {
+                                .Zon => file_formats.fromZon(string, ally) catch break :load,
+                                .Rle => file_formats.fromRle(string, ally) catch break :load,
+                            };
+                            clipboard.deinit();
+                            clipboard = new_pat;
+                        }
+                        if (ui.load_from_clipboard_button.draw()) clip: {
+                            const str = rl.getClipboardText();
+                            const new_pat = file_formats.fromRle(str, ally) catch break :clip;
+                            clipboard.deinit();
+                            clipboard = new_pat;
+                        }
+                    },
+                    .GameTypes => {
+                        defer if (ui.game_type_dropdown.draw()) |sel| {
+                            gol = switch (sel) {
+                                .@"Static Array" => static_array_game.gol(),
+                                .@"Dynamic Array" => dynamic_array_game.gol(),
+                                .Hashset => hashset_game.gol(),
+                                .@"Hashset (faster (sometimes))" => hashfast_game.gol(),
+                            };
+                            game_thread.message(.{ .change_game = gol });
                         };
-                        game_thread.message(.{ .change_game = gol });
-                    };
 
-                    switch (ui.game_type_dropdown.data.selected) {
-                        .@"Static Array" => {
-                            // static array info/options
-                        },
-                        .@"Dynamic Array" => {
-                            // dynamic array info/options
-                            ui.dynamic_array_options_box.draw();
-                            if (ui.dynamic_array_width_spinner.draw(false)) |val| {
-                                dynamic_array_game.setXLen(@intCast(val));
-                            }
-                            if (ui.dynamic_array_height_spinner.draw(false)) |val| {
-                                dynamic_array_game.setYLen(@intCast(val));
-                            }
-                            if (ui.dynamic_array_ywrap_dropdown.draw()) |sel| {
-                                dynamic_array_game.setYWrap(sel);
-                            }
-                            if (ui.dynamic_array_xwrap_dropdown.draw()) |sel| {
-                                dynamic_array_game.setXWrap(sel);
-                            }
-                            const x_wrap_rect = ui.dynamic_array_xwrap_dropdown.rect.rlRect();
-                            const y_wrap_rect = ui.dynamic_array_ywrap_dropdown.rect.rlRect();
-                            rl.drawText("X Wrap: ", @intFromFloat(x_wrap_rect.x - 43), @intFromFloat(x_wrap_rect.y + 10), 7, .dark_gray);
-                            rl.drawText("Y Wrap: ", @intFromFloat(y_wrap_rect.x - 43), @intFromFloat(y_wrap_rect.y + 10), 7, .dark_gray);
-                        },
-                        .Hashset => {
-                            // hashset info/options
-                        },
-                        .@"Hashset (faster (sometimes))" => {
-                            // woohoo
-                        },
-                    }
-                },
+                        switch (ui.game_type_dropdown.data.selected) {
+                            .@"Static Array" => {
+                                // static array info/options
+                            },
+                            .@"Dynamic Array" => {
+                                // dynamic array info/options
+                                ui.dynamic_array_options_box.draw();
+                                if (ui.dynamic_array_width_spinner.draw(false)) |val| {
+                                    dynamic_array_game.setXLen(@intCast(val));
+                                }
+                                if (ui.dynamic_array_height_spinner.draw(false)) |val| {
+                                    dynamic_array_game.setYLen(@intCast(val));
+                                }
+                                if (ui.dynamic_array_ywrap_dropdown.draw()) |sel| {
+                                    dynamic_array_game.setYWrap(sel);
+                                }
+                                if (ui.dynamic_array_xwrap_dropdown.draw()) |sel| {
+                                    dynamic_array_game.setXWrap(sel);
+                                }
+                                const x_wrap_rect = ui.dynamic_array_xwrap_dropdown.rect.rlRect();
+                                const y_wrap_rect = ui.dynamic_array_ywrap_dropdown.rect.rlRect();
+                                rl.drawText("X Wrap: ", @intFromFloat(x_wrap_rect.x - 43), @intFromFloat(x_wrap_rect.y + 10), 7, .dark_gray);
+                                rl.drawText("Y Wrap: ", @intFromFloat(y_wrap_rect.x - 43), @intFromFloat(y_wrap_rect.y + 10), 7, .dark_gray);
+                            },
+                            .Hashset => {
+                                // hashset info/options
+                            },
+                            .@"Hashset (faster (sometimes))" => {
+                                // woohoo
+                            },
+                        }
+                    },
+                }
+            } else {
+                if (ui.show_sidebar_button.draw()) ui.sidebar_visible = true;
             }
 
             const new_target_speed = std.time.ns_per_s / @as(u64, @intCast(@max(game_speed, 1)));
