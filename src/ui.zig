@@ -146,6 +146,10 @@ pub fn isHolding(e: anytype) bool {
     return held_element == e.element or previous_held_element == e.element;
 }
 
+fn nullOrNew(old: anytype, new: anytype) ?@TypeOf(new) {
+    return if (old == new) null else new;
+}
+
 const Container = struct {
     rect: Rect,
     title: [:0]const u8,
@@ -220,7 +224,7 @@ const List = struct {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
 
-    pub fn draw(self: List, items: [][*:0]const u8) bool {
+    pub fn draw(self: List, items: [][*:0]const u8) ??usize {
         var active_inner: i32 = if (self.data.active) |a| @intCast(a) else -1;
         var _focused: i32 = -1;
 
@@ -237,7 +241,7 @@ const List = struct {
             _ = rg.listViewEx(self.getRect(), items, &self.data.scroll, &active_inner, &_focused);
             rg.unlock();
         }
-        return old_active != self.data.active;
+        return nullOrNew(old_active, self.data.active);
     }
 
     const Data = struct {
@@ -298,22 +302,27 @@ fn TabbedList(Tabs: type) type {
             };
         }
 
-        pub fn draw(self: Self, items: EnumArray(Tabs, [][*:0]const u8)) bool {
+        pub fn draw(self: Self, items: EnumArray(Tabs, [][*:0]const u8)) ?Index {
             var tabs_data_buf: TabButtons(Tabs).Data = undefined;
-            if (self.getTabButtons(&tabs_data_buf).draw()) {
-                self.data.open_tab = tabs_data_buf.selected;
+            if (self.getTabButtons(&tabs_data_buf).draw()) |tab| {
+                self.data.open_tab = tab;
             }
 
             var list_data_buf: List.Data = undefined;
-            var result = false;
-            if (self.getList(&list_data_buf).draw(items.get(self.data.open_tab))) {
+            var result: ?Index = null;
+            if (self.getList(&list_data_buf).draw(items.get(self.data.open_tab))) |active| {
                 self.data.selected_tab = self.data.open_tab;
-                self.data.active = list_data_buf.active;
-                result = true;
+                self.data.active = active;
+                result = .{ .tab = self.data.selected_tab, .index = active };
             }
             self.data.scroll.getPtr(self.data.open_tab).* = list_data_buf.scroll;
             return result;
         }
+
+        const Index = struct {
+            tab: Tabs,
+            index: ?usize,
+        };
 
         const Data = struct {
             scroll: EnumArray(Tabs, i32) = .initFill(0),
@@ -367,12 +376,12 @@ fn TabButtons(Tabs: type) type {
             return false;
         }
 
-        pub fn draw(self: Self) bool {
+        pub fn draw(self: Self) ?Tabs {
             var rect, const offset = self.getRectAndOffset();
 
             const fields = std.meta.fields(Tabs);
 
-            var result = false;
+            var result: ?Tabs = null;
             inline for (fields) |field| {
                 if ((@as(Tabs, @enumFromInt(field.value))) == self.data.selected) {
                     rg.setState(@intFromEnum(rg.State.pressed));
@@ -383,7 +392,7 @@ fn TabButtons(Tabs: type) type {
                 if (isHolding(self)) {
                     if (rg.button(rect, field.name)) {
                         self.data.selected = @enumFromInt(field.value);
-                        result = true;
+                        result = @enumFromInt(field.value);
                     }
                 } else if (canGrab(self)) {
                     _ = rg.button(rect, field.name);
@@ -453,8 +462,8 @@ const Slider = struct {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
 
-    /// Returns true when value has changed
-    pub fn draw(self: Self) bool {
+    /// Returns value when it has changed
+    pub fn draw(self: Self) ?f32 {
         const old_value = self.data.value;
         if (canGrab(self)) {
             _ = rg.slider(self.getRect(), self.text_left, self.text_right, &self.data.value, self.data.min, self.data.max);
@@ -463,7 +472,7 @@ const Slider = struct {
             _ = rg.slider(self.getRect(), self.text_left, self.text_right, &self.data.value, self.data.min, self.data.max);
             rg.unlock();
         }
-        return old_value != self.data.value;
+        return nullOrNew(old_value, self.data.value);
     }
 
     const Data = struct {
@@ -489,9 +498,9 @@ const Spinner = struct {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
 
-    /// If `return_on_change` is true - retruns true whenever value changes.
-    /// Otherwise, returns true when editing is finished.
-    pub fn draw(self: Self, return_on_change: bool) bool {
+    /// If `return_on_change` is true - retruns value whenever it changes.
+    /// Otherwise, returns value when editing is finished.
+    pub fn draw(self: Self, return_on_change: bool) ?i32 {
         const old_value = self.data.value;
         var stopped_editing = false;
         if (isHolding(self)) {
@@ -511,11 +520,12 @@ const Spinner = struct {
             _ = rg.spinner(self.getRect(), self.text, &self.data.value, self.data.min, self.data.max, self.data.editing);
             rg.unlock();
         }
-        if (return_on_change) {
-            return old_value != self.data.value;
-        } else {
-            return stopped_editing;
-        }
+        return if (return_on_change)
+            nullOrNew(old_value, self.data.value)
+        else if (stopped_editing)
+            self.data.value
+        else
+            null;
     }
 
     const Data = struct {
@@ -549,8 +559,8 @@ fn Dropdown(Contents: type) type {
             return rl.checkCollisionPointRec(point, rect);
         }
 
-        /// Returns true when value has changed
-        pub fn draw(self: Self) bool {
+        /// Returns value when it has changed
+        pub fn draw(self: Self) ?Contents {
             const fields = std.meta.fields(Contents);
             const field_names = comptime blk: {
                 var len = 0;
@@ -584,11 +594,8 @@ fn Dropdown(Contents: type) type {
                 rg.unlock();
             }
 
-            if (selected_idx != @intFromEnum(self.data.selected)) {
-                self.data.selected = @enumFromInt(selected_idx);
-                return true;
-            }
-            return false;
+            self.data.selected = @enumFromInt(selected_idx);
+            return nullOrNew(@as(Contents, @enumFromInt(selected_idx)), self.data.selected);
         }
 
         const Data = struct {
@@ -613,8 +620,8 @@ const TextInput = struct {
         return rl.checkCollisionPointRec(point, self.getRect());
     }
 
-    /// Returns true when editing stops.
-    pub fn draw(self: Self) bool {
+    /// Returns value when editing stops.
+    pub fn draw(self: Self) ?[:0]u8 {
         const previous_editing = self.data.editing;
         if (self.data.editing or canGrab(self)) {
             if (rg.textBox(self.getRect(), self.data.text_buffer, @intCast(self.data.text_buffer.len - 1), self.data.editing)) {
@@ -625,7 +632,10 @@ const TextInput = struct {
             _ = rg.textBox(self.getRect(), self.data.text_buffer, @intCast(self.data.text_buffer.len - 1), self.data.editing);
             rg.unlock();
         }
-        return previous_editing and !self.data.editing;
+        return if (previous_editing and !self.data.editing)
+            self.data.text_buffer
+        else
+            null;
     }
 
     const Data = struct {

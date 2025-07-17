@@ -277,12 +277,12 @@ pub fn main() !void {
                     }
 
                     ui.game_speed_box.draw();
-                    if (ui.game_speed_slider.draw()) {
-                        game_speed = @intFromFloat(ui.game_speed_slider.data.value);
+                    if (ui.game_speed_slider.draw()) |val| {
+                        game_speed = @intFromFloat(val);
                         ui.game_speed_spinner.data.value = @intCast(game_speed);
                     }
-                    if (ui.game_speed_spinner.draw(true)) {
-                        game_speed = @intCast(ui.game_speed_spinner.data.value);
+                    if (ui.game_speed_spinner.draw(true)) |val| {
+                        game_speed = @intCast(val);
                         ui.game_speed_slider.data.value = math.clamp(
                             @as(f32, @floatFromInt(game_speed)),
                             ui.game_speed_slider.data.min,
@@ -295,16 +295,17 @@ pub fn main() !void {
                     defer for (names_list.values) |name| {
                         ally.free(name);
                     };
-                    if (ui.pattern_list.draw(names_list)) {
+                    if (ui.pattern_list.draw(names_list)) |idx| {
                         library_index =
-                            if (ui.pattern_list.data.active) |active| .{
-                                .category = ui.pattern_list.data.selected_tab,
+                            if (idx.index) |active| .{
+                                .category = idx.tab,
                                 .index = active,
                             } else null;
                     }
-                    if (ui.pattern_name_input.draw()) {
-                        const len = std.mem.indexOfSentinel(u8, 0, ui.pattern_name_input.data.text_buffer);
-                        clipboard.setName(ui.pattern_name_input.data.text_buffer[0..len]) catch {};
+                    if (ui.pattern_name_input.draw()) |text| {
+                        const len = std.mem.indexOfSentinel(u8, 0, text);
+                        std.debug.print("{d}, {d}\n", .{ len, text.len });
+                        clipboard.setName(text[0..len]) catch {};
                     }
                     if (ui.save_pattern_button.draw()) save: {
                         if (clipboard.name.len == 0) break :save;
@@ -356,8 +357,8 @@ pub fn main() !void {
                     }
                 },
                 .GameTypes => {
-                    defer if (ui.game_type_dropdown.draw()) {
-                        gol = switch (ui.game_type_dropdown.data.selected) {
+                    defer if (ui.game_type_dropdown.draw()) |sel| {
+                        gol = switch (sel) {
                             .@"Static Array" => static_array_game.gol(),
                             .@"Dynamic Array" => dynamic_array_game.gol(),
                             .Hashset => hashset_game.gol(),
@@ -373,17 +374,17 @@ pub fn main() !void {
                         .@"Dynamic Array" => {
                             // dynamic array info/options
                             ui.dynamic_array_options_box.draw();
-                            if (ui.dynamic_array_width_spinner.draw(false)) {
-                                dynamic_array_game.setXLen(@intCast(ui.dynamic_array_width_spinner.data.value));
+                            if (ui.dynamic_array_width_spinner.draw(false)) |val| {
+                                dynamic_array_game.setXLen(@intCast(val));
                             }
-                            if (ui.dynamic_array_height_spinner.draw(false)) {
-                                dynamic_array_game.setYLen(@intCast(ui.dynamic_array_height_spinner.data.value));
+                            if (ui.dynamic_array_height_spinner.draw(false)) |val| {
+                                dynamic_array_game.setYLen(@intCast(val));
                             }
-                            if (ui.dynamic_array_ywrap_dropdown.draw()) {
-                                dynamic_array_game.setYWrap(ui.dynamic_array_ywrap_dropdown.data.selected);
+                            if (ui.dynamic_array_ywrap_dropdown.draw()) |sel| {
+                                dynamic_array_game.setYWrap(sel);
                             }
-                            if (ui.dynamic_array_xwrap_dropdown.draw()) {
-                                dynamic_array_game.setXWrap(ui.dynamic_array_xwrap_dropdown.data.selected);
+                            if (ui.dynamic_array_xwrap_dropdown.draw()) |sel| {
+                                dynamic_array_game.setXWrap(sel);
                             }
                             const x_wrap_rect = ui.dynamic_array_xwrap_dropdown.rect.rlRect();
                             const y_wrap_rect = ui.dynamic_array_ywrap_dropdown.rect.rlRect();
