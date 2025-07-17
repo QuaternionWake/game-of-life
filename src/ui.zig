@@ -606,6 +606,7 @@ fn Dropdown(Contents: type) type {
             };
 
             var selected_idx: i32 = @intFromEnum(self.data.selected);
+            const old_sel: Contents = self.data.selected;
 
             if (isHolding(self)) {
                 if (rg.dropdownBox(self.getRect(), &field_names, &selected_idx, self.data.editing) != 0) {
@@ -622,7 +623,7 @@ fn Dropdown(Contents: type) type {
             }
 
             self.data.selected = @enumFromInt(selected_idx);
-            return nullOrNew(@as(Contents, @enumFromInt(selected_idx)), self.data.selected);
+            return nullOrNew(old_sel, self.data.selected);
         }
 
         const Data = struct {
