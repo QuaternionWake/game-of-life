@@ -16,7 +16,8 @@ pub fn build(b: *std.Build) !void {
     const rl_dep = b.dependency("raylib_zig", .{
         .target = target,
         .optimize = optimize,
-        .linux_display_backend = rlz.LinuxDisplayBackend.Both,
+        // fullscreen broken on wayland, workaround broken on x
+        .linux_display_backend = rlz.LinuxDisplayBackend.X11,
     });
 
     const raylib = rl_dep.module("raylib");

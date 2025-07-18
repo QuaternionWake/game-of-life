@@ -85,7 +85,10 @@ pub fn main() !void {
     defer game_thread.message(.{ .end_game = {} });
 
     while (!rl.windowShouldClose()) {
-        _ = updateScreenSize();
+        screen_size = .init(
+            @floatFromInt(rl.getRenderWidth()),
+            @floatFromInt(rl.getRenderHeight()),
+        );
         ui.grabElement();
 
         const mouse_pos = rl.getMousePosition();
@@ -628,24 +631,4 @@ fn getBounds(x_start: f32, y_start: f32, x_end: f32, y_end: f32) Bounds {
 
 fn otherScreenCorner(camera: rl.Camera2D) Vec2 {
     return camera.target.add(screen_size.scale(1 / camera.zoom));
-}
-
-fn updateScreenSize() bool {
-    const new_size: Vec2 = .init(
-        @floatFromInt(rl.getRenderWidth()),
-        @floatFromInt(rl.getRenderHeight()),
-    );
-
-    // For some reason render size and screen size get desynced when exiting
-    // fullscreen which breaks rendering so we must do this to keep them synced
-    rl.setWindowSize(
-        @intFromFloat(new_size.x),
-        @intFromFloat(new_size.y),
-    );
-
-    if (new_size.equals(screen_size) == 0) {
-        screen_size = new_size;
-        return true;
-    }
-    return false;
 }

@@ -41,7 +41,7 @@ pub fn rlRect(self: Rect) RlRect {
 }
 
 fn screenRect() RlRect {
-    return RlRect.init(0, 0, @floatFromInt(rl.getScreenWidth()), @floatFromInt(rl.getScreenHeight()));
+    return RlRect.init(0, 0, @floatFromInt(rl.getRenderWidth()), @floatFromInt(rl.getRenderHeight()));
 }
 
 const VerticalPos = union(enum) {
