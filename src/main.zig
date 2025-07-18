@@ -27,9 +27,9 @@ var screen_size: Vec2 = .init(800, 500);
 pub const GameType = enum { @"Static Array", @"Dynamic Array", Hashset, @"Hashset (faster (sometimes))" };
 
 pub fn main() !void {
+    rl.setConfigFlags(.{ .window_resizable = true });
     rl.initWindow(@intFromFloat(screen_size.x), @intFromFloat(screen_size.y), "Game of Life");
     defer rl.closeWindow();
-    rl.setWindowState(.{ .window_resizable = true });
 
     rl.setTargetFPS(60);
 
