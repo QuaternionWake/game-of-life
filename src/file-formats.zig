@@ -7,18 +7,18 @@ const Allocator = mem.Allocator;
 const Pattern = @import("Pattern.zig");
 const Tile = @import("GameOfLife.zig").Tile;
 
-pub const LoadableFormats = enum {
+pub const Formats = enum {
     Zon,
     Rle,
 
-    pub fn toString(self: LoadableFormats) []const u8 {
+    pub fn toString(self: Formats) []const u8 {
         return switch (self) {
             .Zon => ".zon",
             .Rle => ".rle",
         };
     }
 
-    pub fn fromString(str: []const u8) ?LoadableFormats {
+    pub fn fromString(str: []const u8) ?Formats {
         return if (mem.eql(u8, str, ".zon"))
             .Zon
         else if (mem.eql(u8, str, ".rle"))
@@ -166,6 +166,152 @@ pub fn fromRle(str: []const u8, ally: Allocator) !Pattern {
 
     return Pattern.init(name, tiles.items, ally);
 }
+
+pub fn toRle(pat: Pattern, ally: Allocator) ![]u8 {
+    if (pat.tiles.len == 0) return error.EmptyPattern;
+
+    const tiles = try ally.alloc(Tile, pat.tiles.len);
+    defer ally.free(tiles);
+    @memcpy(tiles, pat.tiles);
+    const lessThan = struct {
+        fn f(_: void, lhs: Tile, rhs: Tile) bool {
+            return if (lhs.y == rhs.y) lhs.x < rhs.x else lhs.y < rhs.y;
+        }
+    }.f;
+    std.mem.sort(Tile, tiles, {}, lessThan);
+
+    const x_min, const y_min, const x_max, const y_max = blk: {
+        var x_min: isize = std.math.maxInt(isize);
+        var y_min: isize = std.math.maxInt(isize);
+        var x_max: isize = std.math.minInt(isize);
+        var y_max: isize = std.math.minInt(isize);
+        for (tiles) |tile| {
+            if (tile.x < x_min) x_min = tile.x;
+            if (tile.y < y_min) y_min = tile.y;
+            if (tile.x > x_max) x_max = tile.x;
+            if (tile.y > y_max) y_max = tile.y;
+        }
+        break :blk .{ x_min, y_min, x_max, y_max };
+    };
+
+    var rle_ir = try RleIR.init(ally, x_min, tiles[0]);
+    defer rle_ir.deinit();
+
+    for (tiles[1..]) |tile| {
+        try rle_ir.addTile(tile);
+    }
+
+    var rle = List(u8).init(ally);
+    errdefer rle.deinit();
+    const w = rle.writer();
+    try w.print("#N {s}\n", .{pat.name});
+
+    try w.print("x = {d}, y = {d}, rule = B3/S23\n", .{ x_max - x_min + 1, y_max - y_min + 1 });
+
+    var line_len: usize = 0;
+    for (rle_ir.runs.items) |run| {
+        var buf: [70]u8 = undefined;
+        const run_str = try if (run.len == 1)
+            std.fmt.bufPrint(&buf, "{c}", .{run.char()})
+        else
+            std.fmt.bufPrint(&buf, "{d}{c}", .{ run.len, run.char() });
+        if (line_len + run_str.len > 70) {
+            try w.print("\n{s}", .{run_str});
+            line_len = run_str.len;
+        } else {
+            try w.print("{s}", .{run_str});
+            line_len += run_str.len;
+        }
+    }
+    if (line_len + 1 > 70) {
+        try w.print("\n!", .{});
+    } else {
+        try w.print("!", .{});
+    }
+
+    return try rle.toOwnedSlice();
+}
+
+const RleIR = struct {
+    runs: List(Run),
+    x_min: isize,
+    prev_tile: Tile,
+
+    fn init(ally: Allocator, x_min: isize, first_tile: Tile) !RleIR {
+        var runs = List(Run).init(ally);
+        errdefer runs.deinit();
+        if (first_tile.x != x_min) {
+            try runs.append(.dead(@intCast(first_tile.x - x_min)));
+        }
+        try runs.append(.live(1));
+
+        return .{
+            .runs = runs,
+            .x_min = x_min,
+            .prev_tile = first_tile,
+        };
+    }
+
+    fn deinit(self: RleIR) void {
+        self.runs.deinit();
+    }
+
+    fn addTile(self: *RleIR, tile: Tile) !void {
+        if (tile.y != self.prev_tile.y) {
+            try self.addLine(tile);
+        } else if (tile.x != self.prev_tile.x + 1) {
+            try self.addDead(tile);
+        } else {
+            try self.addLive(tile);
+        }
+    }
+
+    fn addLive(self: *RleIR, tile: Tile) !void {
+        const last = &self.runs.items[self.runs.items.len - 1];
+        last.len += 1;
+        self.prev_tile = tile;
+    }
+
+    fn addDead(self: *RleIR, tile: Tile) !void {
+        try self.runs.append(.dead(@intCast(tile.x - self.prev_tile.x - 1)));
+        try self.runs.append(.live(1));
+        self.prev_tile = tile;
+    }
+
+    fn addLine(self: *RleIR, tile: Tile) !void {
+        try self.runs.append(.line(@intCast(tile.y - self.prev_tile.y)));
+        if (tile.x != self.x_min) {
+            try self.runs.append(.dead(@intCast(tile.x - self.x_min)));
+        }
+        try self.runs.append(.live(1));
+        self.prev_tile = tile;
+    }
+
+    const Run = struct {
+        type: enum { live, dead, line },
+        len: usize,
+
+        fn live(n: usize) Run {
+            return .{ .type = .live, .len = n };
+        }
+
+        fn dead(n: usize) Run {
+            return .{ .type = .dead, .len = n };
+        }
+
+        fn line(n: usize) Run {
+            return .{ .type = .line, .len = n };
+        }
+
+        fn char(self: Run) u8 {
+            return switch (self.type) {
+                .live => 'o',
+                .dead => 'b',
+                .line => '$',
+            };
+        }
+    };
+};
 
 fn getRleLineType(line: []const u8) RleCommentType {
     return switch (line[1]) {

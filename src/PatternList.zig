@@ -32,7 +32,7 @@ pub fn init(ally: Allocator, comptime category: Category) !Self {
             if (entry.kind != .file) continue;
 
             const externsion_start = std.mem.lastIndexOfScalar(u8, entry.name, '.') orelse continue;
-            const file_type = file_formats.LoadableFormats.fromString(entry.name[externsion_start..]) orelse continue;
+            const file_type = file_formats.Formats.fromString(entry.name[externsion_start..]) orelse continue;
             const file = dir.openFile(entry.name, .{}) catch continue;
             defer file.close();
             const str = file.readToEndAllocOptions(ally, std.math.maxInt(usize), null, @alignOf(u8), 0) catch continue;

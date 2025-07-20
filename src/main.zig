@@ -309,12 +309,14 @@ pub fn main() !void {
                         if (ui.pattern_name_input.draw()) |text| {
                             clipboard.setName(text) catch {};
                         }
+                        defer _ = ui.save_pattern_extension_dropdown.draw();
                         if (ui.save_pattern_button.draw()) save: {
                             if (clipboard.name.len == 0) break :save;
-                            var filename = List(u8).initCapacity(ally, clipboard.name.len + 4) catch break :save;
+                            const format = ui.save_pattern_extension_dropdown.data.selected;
+                            var filename = List(u8).init(ally);
                             defer filename.deinit();
-                            filename.appendSliceAssumeCapacity(clipboard.name);
-                            filename.appendSliceAssumeCapacity(".zon");
+                            filename.appendSlice(clipboard.name) catch break :save;
+                            filename.appendSlice(format.toString()) catch break :save;
                             const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :save;
                             defer ally.free(path);
                             std.fs.makeDirAbsolute(path) catch |err| if (err != error.PathAlreadyExists) break :save;
@@ -322,9 +324,12 @@ pub fn main() !void {
                             defer dir.close();
                             const file = dir.createFile(filename.items, .{}) catch break :save;
                             defer file.close();
-                            const zon = file_formats.toZon(clipboard, ally) catch break :save;
-                            defer ally.free(zon);
-                            _ = file.write(zon) catch break :save;
+                            const string = switch (format) {
+                                .Zon => file_formats.toZon(clipboard, ally) catch break :save,
+                                .Rle => file_formats.toRle(clipboard, ally) catch break :save,
+                            };
+                            defer ally.free(string);
+                            _ = file.write(string) catch break :save;
                         }
                         _ = ui.pattern_load_path_input.draw();
                         defer _ = ui.load_pattern_extension_dropdown.draw();

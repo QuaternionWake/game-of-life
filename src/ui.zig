@@ -11,7 +11,7 @@ const Rect = @import("rect.zig");
 const GameType = @import("main.zig").GameType;
 const Category = @import("PatternLibrary.zig").Category;
 const Wrap = @import("games/DynamicArray.zig").Wrap;
-const LoadableFormats = @import("file-formats.zig").LoadableFormats;
+const FileFormats = @import("file-formats.zig").Formats;
 
 pub const GuiElement = enum {
     Grid,
@@ -30,7 +30,8 @@ pub const GuiElement = enum {
     GameSpeedSpinner,
 
     PatternList,
-    PatternNameInput,
+    SavePathInput,
+    SavePatternExtension,
     SavePatternButton,
     LoadPathInput,
     LoadPatternExtension,
@@ -84,6 +85,7 @@ const settings_elements = .{
 const pattern_list_elements = .{
     pattern_list,
     pattern_name_input,
+    save_pattern_extension_dropdown,
     save_pattern_button,
     pattern_load_path_input,
     load_pattern_extension_dropdown,
@@ -813,14 +815,28 @@ pub const pattern_name_input: TextInput(32) = .{
         .parent = &sidebar.rect,
         .x = .{ .left = 20 },
         .y = .{ .top = 310 },
-        .width = .{ .relative = -85 },
+        .width = .{ .relative = -150 },
         .height = .{ .amount = 25 },
     },
     .data = &pattern_name_input_data,
-    .element = .PatternNameInput,
+    .element = .SavePathInput,
 };
 
 var pattern_name_input_data: TextInput(32).Data = .{};
+
+pub const save_pattern_extension_dropdown: Dropdown(FileFormats) = .{
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .right = -65 },
+        .y = .{ .top = 310 },
+        .width = .{ .amount = 60 },
+        .height = .{ .amount = 25 },
+    },
+    .data = &save_pattern_extension_dropdown_data,
+    .element = .SavePatternExtension,
+};
+
+var save_pattern_extension_dropdown_data: Dropdown(FileFormats).Data = .{};
 
 pub const save_pattern_button: Button = .{
     .rect = .{
@@ -848,7 +864,7 @@ pub const pattern_load_path_input: TextInput(32) = .{
 
 var pattern_load_path_input_data: TextInput(32).Data = .{};
 
-pub const load_pattern_extension_dropdown: Dropdown(LoadableFormats) = .{
+pub const load_pattern_extension_dropdown: Dropdown(FileFormats) = .{
     .rect = .{
         .parent = &sidebar.rect,
         .x = .{ .right = -65 },
@@ -860,7 +876,7 @@ pub const load_pattern_extension_dropdown: Dropdown(LoadableFormats) = .{
     .element = .LoadPatternExtension,
 };
 
-var load_pattern_extension_dropdown_data: Dropdown(LoadableFormats).Data = .{};
+var load_pattern_extension_dropdown_data: Dropdown(FileFormats).Data = .{};
 
 pub const load_pattern_button: Button = .{
     .rect = .{
