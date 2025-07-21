@@ -1,6 +1,7 @@
 const std = @import("std");
 const mem = std.mem;
 const fmt = std.fmt;
+const ascii = std.ascii;
 const List = std.ArrayList;
 const Allocator = mem.Allocator;
 
@@ -66,66 +67,76 @@ pub fn fromRle(str: []const u8, ally: Allocator) !Pattern {
 
     // Body
     {
-        const rest = iter.rest();
-        const end = mem.indexOfScalar(u8, rest, '!') orelse rest.len;
-        const body = rest[0..end];
-        var body_iter = mem.splitScalar(u8, body, '$');
+        var rle_iter = RleTokenizer.init(iter.rest());
+
         const x_start = x_offset orelse 0;
         const y_start = y_offset orelse 0;
 
         var x = x_start;
         var y = y_start;
-        while (body_iter.next()) |chunk| {
-            var num_start: usize = 0;
-            var in_number = false;
-            var run_len: ?usize = null;
-            for (chunk, 0..) |c, i| {
-                if (c >= '0' and c <= '9') {
-                    if (!in_number) {
-                        in_number = true;
-                        num_start = i;
+
+        var run_len: ?usize = null;
+        while (rle_iter.next()) |token| {
+            if (fmt.parseInt(usize, token, 10) catch null) |n| {
+                run_len = n;
+                continue;
+            }
+
+            if (token.len != 1) return error.ParseError;
+
+            switch (token[0]) {
+                'b' => x += @intCast(run_len orelse 1),
+                'o', 'x', 'y', 'z' => if (run_len) |len| {
+                    for (0..len) |_| {
+                        try tiles.append(.{ .x = x, .y = y });
+                        x += 1;
                     }
-                } else if (in_number) {
-                    in_number = false;
-                    run_len = fmt.parseInt(usize, chunk[num_start..i], 10) catch break;
-                }
-
-                switch (c) {
-                    '\n', '\r' => continue,
-
-                    'b' => {
-                        x += @intCast(run_len orelse 1);
-                        run_len = null;
-                    },
-
-                    'o', 'x', 'y', 'z' => {
-                        if (run_len) |len| {
-                            for (0..(len)) |_| {
-                                try tiles.append(.{ .x = x, .y = y });
-                                x += 1;
-                            }
-                            run_len = null;
-                        } else {
-                            try tiles.append(.{ .x = x, .y = y });
-                            x += 1;
-                        }
-                    },
-
-                    else => {},
-                }
+                } else {
+                    try tiles.append(.{ .x = x, .y = y });
+                    x += 1;
+                },
+                '$' => {
+                    x = x_start;
+                    y += @intCast(run_len orelse 1);
+                },
+                else => return error.ParseError,
             }
-            if (in_number) blk: {
-                run_len = fmt.parseInt(usize, chunk[num_start..], 10) catch break :blk;
-                y += @intCast(run_len.? -| 1);
-            }
-
-            x = x_start;
-            y += 1;
+            run_len = null;
         }
     }
 
     return Pattern.init(name, tiles.items, ally);
 }
+
+const RleTokenizer = struct {
+    buffer: []const u8,
+    index: usize,
+
+    fn init(buffer: []const u8) RleTokenizer {
+        return .{
+            .buffer = buffer,
+            .index = 0,
+        };
+    }
+
+    fn next(self: *RleTokenizer) ?[]const u8 {
+        while (self.index < self.buffer.len and ascii.isWhitespace(self.buffer[self.index])) {
+            self.index += 1;
+        }
+        const start = self.index;
+        if (start == self.buffer.len or self.buffer[start] == '!') return null;
+
+        if (ascii.isDigit(self.buffer[start])) {
+            while (self.index < self.buffer.len and ascii.isDigit(self.buffer[self.index])) {
+                self.index += 1;
+            }
+        } else {
+            self.index += 1;
+        }
+
+        return self.buffer[start..self.index];
+    }
+};
 
 fn getRleLineType(line: []const u8) RleCommentType {
     return switch (line[1]) {
