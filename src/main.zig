@@ -306,53 +306,9 @@ pub fn main() !void {
                                 .index = idx.index,
                             } else null;
                         }
-                        if (ui.pattern_name_input.draw()) |text| {
-                            clipboard.setName(text) catch {};
-                        }
-                        defer _ = ui.save_pattern_extension_dropdown.draw();
-                        if (ui.save_pattern_button.draw()) save: {
-                            if (clipboard.name.len == 0) break :save;
-                            const format = ui.save_pattern_extension_dropdown.data.selected;
-                            var filename = List(u8).init(ally);
-                            defer filename.deinit();
-                            filename.appendSlice(clipboard.name) catch break :save;
-                            filename.appendSlice(format.toString()) catch break :save;
-                            const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :save;
-                            defer ally.free(path);
-                            std.fs.makeDirAbsolute(path) catch |err| if (err != error.PathAlreadyExists) break :save;
-                            var dir = std.fs.openDirAbsolute(path, .{}) catch break :save;
-                            defer dir.close();
-                            const file = dir.createFile(filename.items, .{}) catch break :save;
-                            defer file.close();
-                            const string = switch (format) {
-                                .Zon => file_formats.toZon(clipboard, ally) catch break :save,
-                                .Rle => file_formats.toRle(clipboard, ally) catch break :save,
-                            };
-                            defer ally.free(string);
-                            _ = file.write(string) catch break :save;
-                        }
-                        _ = ui.pattern_load_path_input.draw();
-                        defer _ = ui.load_pattern_extension_dropdown.draw();
-                        if (ui.load_pattern_button.draw()) load: {
-                            const format = ui.load_pattern_extension_dropdown.data.selected;
-                            var filename = List(u8).init(ally);
-                            defer filename.deinit();
-                            filename.appendSlice(ui.pattern_load_path_input.data.textSlice()) catch break :load;
-                            filename.appendSlice(format.toString()) catch break :load;
-                            const path = std.fs.getAppDataDir(ally, "game-of-life") catch break :load;
-                            defer ally.free(path);
-                            var dir = std.fs.openDirAbsolute(path, .{}) catch break :load;
-                            defer dir.close();
-                            const file = dir.openFile(filename.items, .{}) catch break :load;
-                            defer file.close();
-                            const string = file.readToEndAllocOptions(ally, math.maxInt(usize), null, @alignOf(u8), 0) catch break :load;
-                            defer ally.free(string);
-                            const new_pat = switch (format) {
-                                .Zon => file_formats.fromZon(string, ally) catch break :load,
-                                .Rle => file_formats.fromRle(string, ally) catch break :load,
-                            };
-                            clipboard.deinit();
-                            clipboard = new_pat;
+                        _ = ui.pattern_name_input.draw();
+                        if (ui.save_pattern_button.draw()) {
+                            patterns.savePattern(clipboard, ui.pattern_name_input.data.textSlice(), ally) catch {};
                         }
                         if (ui.load_from_clipboard_button.draw()) clip: {
                             const str = rl.getClipboardText();

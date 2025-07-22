@@ -31,11 +31,7 @@ pub const GuiElement = enum {
 
     PatternList,
     SavePathInput,
-    SavePatternExtension,
     SavePatternButton,
-    LoadPathInput,
-    LoadPatternExtension,
-    LoadPatternButton,
     LoadFromClipboardButton,
 
     GameTypeDropdown,
@@ -85,11 +81,7 @@ const settings_elements = .{
 const pattern_list_elements = .{
     pattern_list,
     pattern_name_input,
-    save_pattern_extension_dropdown,
     save_pattern_button,
-    pattern_load_path_input,
-    load_pattern_extension_dropdown,
-    load_pattern_button,
     load_from_clipboard_button,
 };
 
@@ -815,7 +807,7 @@ pub const pattern_name_input: TextInput(32) = .{
         .parent = &sidebar.rect,
         .x = .{ .left = 20 },
         .y = .{ .top = 310 },
-        .width = .{ .relative = -150 },
+        .width = .{ .relative = -85 },
         .height = .{ .amount = 25 },
     },
     .data = &pattern_name_input_data,
@@ -823,20 +815,6 @@ pub const pattern_name_input: TextInput(32) = .{
 };
 
 var pattern_name_input_data: TextInput(32).Data = .{};
-
-pub const save_pattern_extension_dropdown: Dropdown(FileFormats) = .{
-    .rect = .{
-        .parent = &sidebar.rect,
-        .x = .{ .right = -65 },
-        .y = .{ .top = 310 },
-        .width = .{ .amount = 60 },
-        .height = .{ .amount = 25 },
-    },
-    .data = &save_pattern_extension_dropdown_data,
-    .element = .SavePatternExtension,
-};
-
-var save_pattern_extension_dropdown_data: Dropdown(FileFormats).Data = .{};
 
 pub const save_pattern_button: Button = .{
     .rect = .{
@@ -850,51 +828,11 @@ pub const save_pattern_button: Button = .{
     .element = .SavePatternButton,
 };
 
-pub const pattern_load_path_input: TextInput(32) = .{
-    .rect = .{
-        .parent = &sidebar.rect,
-        .x = .{ .left = 20 },
-        .y = .{ .top = 340 },
-        .width = .{ .relative = -150 },
-        .height = .{ .amount = 25 },
-    },
-    .data = &pattern_load_path_input_data,
-    .element = .LoadPathInput,
-};
-
-var pattern_load_path_input_data: TextInput(32).Data = .{};
-
-pub const load_pattern_extension_dropdown: Dropdown(FileFormats) = .{
-    .rect = .{
-        .parent = &sidebar.rect,
-        .x = .{ .right = -65 },
-        .y = .{ .top = 340 },
-        .width = .{ .amount = 60 },
-        .height = .{ .amount = 25 },
-    },
-    .data = &load_pattern_extension_dropdown_data,
-    .element = .LoadPatternExtension,
-};
-
-var load_pattern_extension_dropdown_data: Dropdown(FileFormats).Data = .{};
-
-pub const load_pattern_button: Button = .{
-    .rect = .{
-        .parent = &sidebar.rect,
-        .x = .{ .right = -20 },
-        .y = .{ .top = 340 },
-        .width = .{ .amount = 40 },
-        .height = .{ .amount = 25 },
-    },
-    .text = "Load",
-    .element = .LoadPatternButton,
-};
-
 pub const load_from_clipboard_button: Button = .{
     .rect = .{
         .parent = &sidebar.rect,
         .x = .{ .middle = 0 },
-        .y = .{ .top = 380 },
+        .y = .{ .top = 350 },
         .width = .{ .relative = -40 },
         .height = .{ .amount = 40 },
     },
