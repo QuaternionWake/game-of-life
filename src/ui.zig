@@ -33,6 +33,7 @@ pub const GuiElement = enum {
     SavePathInput,
     SavePatternButton,
     LoadFromClipboardButton,
+    CopyToClipboardButton,
 
     GameTypeDropdown,
 
@@ -83,6 +84,7 @@ const pattern_list_elements = .{
     pattern_name_input,
     save_pattern_button,
     load_from_clipboard_button,
+    copy_to_clipboard_button,
 };
 
 const game_type_elements = .{
@@ -831,13 +833,25 @@ pub const save_pattern_button: Button = .{
 pub const load_from_clipboard_button: Button = .{
     .rect = .{
         .parent = &sidebar.rect,
-        .x = .{ .middle = 0 },
+        .x = .{ .left = 20 },
         .y = .{ .top = 350 },
-        .width = .{ .relative = -40 },
+        .width = .{ .relative = -150 },
         .height = .{ .amount = 40 },
     },
-    .text = "Load from clipboard",
+    .text = "Load from\nclipboard",
     .element = .LoadFromClipboardButton,
+};
+
+pub const copy_to_clipboard_button: Button = .{
+    .rect = .{
+        .parent = &sidebar.rect,
+        .x = .{ .right = -20 },
+        .y = .{ .top = 350 },
+        .width = .{ .amount = 100 },
+        .height = .{ .amount = 40 },
+    },
+    .text = "Copy to\nclipboard",
+    .element = .CopyToClipboardButton,
 };
 
 pub const hide_sidebar_button: Button = .{

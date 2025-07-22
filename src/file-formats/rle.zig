@@ -151,7 +151,7 @@ fn getRleLineType(line: []const u8) RleCommentType {
 
 const RleCommentType = enum { Name, Comment, DiscoveryInfo, TopLeftCoords, Rules, Unknown };
 
-pub fn toRle(pat: Pattern, ally: Allocator) ![]u8 {
+pub fn toRle(pat: Pattern, ally: Allocator) ![:0]u8 {
     if (pat.tiles.len == 0) return error.EmptyPattern;
 
     const tiles = try ally.alloc(Tile, pat.tiles.len);
@@ -188,7 +188,9 @@ pub fn toRle(pat: Pattern, ally: Allocator) ![]u8 {
     var rle = List(u8).init(ally);
     errdefer rle.deinit();
     const w = rle.writer();
-    try w.print("#N {s}\n", .{pat.name});
+    if (pat.name.len != 0) {
+        try w.print("#N {s}\n", .{pat.name});
+    }
 
     try w.print("x = {d}, y = {d}, rule = B3/S23\n", .{ x_max - x_min + 1, y_max - y_min + 1 });
 
@@ -213,7 +215,7 @@ pub fn toRle(pat: Pattern, ally: Allocator) ![]u8 {
         try w.print("!", .{});
     }
 
-    return try rle.toOwnedSlice();
+    return try rle.toOwnedSliceSentinel(0);
 }
 
 const RleIR = struct {
