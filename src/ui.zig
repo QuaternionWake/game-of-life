@@ -531,7 +531,7 @@ const Spinner = struct {
                 self.data.editing = !self.data.editing;
                 stopped_editing = !self.data.editing;
             }
-        } else if (canGrab(self)) {
+        } else if (canGrab(self) or self.data.editing) {
             // giving it val for min and max both prevents it form editing the value and from drawing
             // the wrong, edited value for one frame
             if (rg.spinner(self.getRect(), self.text, &self.data.value, self.data.value, self.data.value, self.data.editing) != 0) {
