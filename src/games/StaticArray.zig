@@ -132,32 +132,16 @@ fn nextTile(board: *const Board, tile: TileValue, comptime tile_type: TileType) 
     const x, const y = tile.getCoords(tile_type);
     const count =
         // Edges
-        blk: {
-            break :blk if (comptime tile_type.hasTop()) @as(u8, @intFromBool(board[y - 1][x])) else 0;
-        } +
-        blk: {
-            break :blk if (comptime tile_type.hasBottom()) @as(u8, @intFromBool(board[y + 1][x])) else 0;
-        } +
-        blk: {
-            break :blk if (comptime tile_type.hasLeft()) @as(u8, @intFromBool(board[y][x - 1])) else 0;
-        } +
-        blk: {
-            break :blk if (comptime tile_type.hasRight()) @as(u8, @intFromBool(board[y][x + 1])) else 0;
-        } +
+        (if (comptime tile_type.hasTop()) @as(u8, @intFromBool(board[y - 1][x])) else 0) +
+        (if (comptime tile_type.hasBottom()) @as(u8, @intFromBool(board[y + 1][x])) else 0) +
+        (if (comptime tile_type.hasLeft()) @as(u8, @intFromBool(board[y][x - 1])) else 0) +
+        (if (comptime tile_type.hasRight()) @as(u8, @intFromBool(board[y][x + 1])) else 0) +
 
         // Corners
-        blk: {
-            break :blk if (comptime tile_type.hasTopLeft()) @as(u8, @intFromBool(board[y - 1][x - 1])) else 0;
-        } +
-        blk: {
-            break :blk if (comptime tile_type.hasTopRight()) @as(u8, @intFromBool(board[y - 1][x + 1])) else 0;
-        } +
-        blk: {
-            break :blk if (comptime tile_type.hasBottomLeft()) @as(u8, @intFromBool(board[y + 1][x - 1])) else 0;
-        } +
-        blk: {
-            break :blk if (comptime tile_type.hasBottomRight()) @as(u8, @intFromBool(board[y + 1][x + 1])) else 0;
-        };
+        (if (comptime tile_type.hasTopLeft()) @as(u8, @intFromBool(board[y - 1][x - 1])) else 0) +
+        (if (comptime tile_type.hasTopRight()) @as(u8, @intFromBool(board[y - 1][x + 1])) else 0) +
+        (if (comptime tile_type.hasBottomLeft()) @as(u8, @intFromBool(board[y + 1][x - 1])) else 0) +
+        (if (comptime tile_type.hasBottomRight()) @as(u8, @intFromBool(board[y + 1][x + 1])) else 0);
 
     if (board[y][x]) {
         return count == 2 or count == 3;
