@@ -6,11 +6,15 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
     var options = b.addOptions();
 
-    const exe = b.addExecutable(.{
-        .name = "game_of_life",
+    const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+    });
+
+    const exe = b.addExecutable(.{
+        .name = "game_of_life",
+        .root_module = exe_mod,
     });
 
     const rl_dep = b.dependency("raylib_zig", .{
@@ -35,7 +39,10 @@ pub fn build(b: *std.Build) !void {
     var pattern_iter = patterns.iterator();
     while (pattern_iter.next()) |pat| {
         options.addOption([]const []const u8, pat.key_ptr.*, pat.value_ptr.*);
+        b.allocator.free(pat.key_ptr.*);
+        b.allocator.free(pat.value_ptr.*);
     }
+    patterns.deinit();
     exe.root_module.addOptions("resources", options);
 
     b.installArtifact(exe);
@@ -52,9 +59,7 @@ pub fn build(b: *std.Build) !void {
     run_step.dependOn(&run_cmd.step);
 
     const exe_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = exe_mod,
     });
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
@@ -76,7 +81,7 @@ fn getPatterns(b: *std.Build) !std.StringHashMap([]const []const u8) {
         var category = try dir.openDir(cat_entry.name, .{ .iterate = true });
         defer category.close();
 
-        var patterns = std.ArrayList([]const u8).init(b.allocator);
+        var patterns = std.array_list.Managed([]const u8).init(b.allocator);
 
         var pat_iter = category.iterate();
         while (pat_iter.next() catch null) |pat_entry| {
@@ -88,7 +93,9 @@ fn getPatterns(b: *std.Build) !std.StringHashMap([]const []const u8) {
             try patterns.append(try file.readToEndAlloc(b.allocator, std.math.maxInt(usize)));
         }
 
-        try categories.put(cat_entry.name, try patterns.toOwnedSlice());
+        const name = try b.allocator.alloc(u8, cat_entry.name.len);
+        @memcpy(name, cat_entry.name);
+        try categories.put(name, try patterns.toOwnedSlice());
     }
 
     return categories;

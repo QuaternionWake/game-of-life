@@ -1,5 +1,5 @@
 const std = @import("std");
-const List = std.ArrayList;
+const List = std.array_list.Managed;
 const Allocator = std.mem.Allocator;
 
 const file_formats = @import("file-formats.zig");
@@ -35,7 +35,7 @@ pub fn init(ally: Allocator, comptime category: Category) !Self {
             const file_type = file_formats.Formats.fromString(entry.name[externsion_start..]) orelse continue;
             const file = dir.openFile(entry.name, .{}) catch continue;
             defer file.close();
-            const str = file.readToEndAllocOptions(ally, std.math.maxInt(usize), null, @alignOf(u8), 0) catch continue;
+            const str = file.readToEndAllocOptions(ally, std.math.maxInt(usize), null, .of(u8), 0) catch continue;
             defer ally.free(str);
             var pattern = switch (file_type) {
                 .Zon => file_formats.fromZon(str, ally) catch continue,

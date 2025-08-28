@@ -1,6 +1,6 @@
 const std = @import("std");
 const math = std.math;
-const List = std.ArrayList;
+const List = std.array_list.Managed;
 const Thread = std.Thread;
 const Allocator = std.mem.Allocator;
 

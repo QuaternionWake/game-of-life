@@ -2,7 +2,7 @@ const std = @import("std");
 const mem = std.mem;
 const fmt = std.fmt;
 const ascii = std.ascii;
-const List = std.ArrayList;
+const List = std.array_list.Managed;
 const Allocator = mem.Allocator;
 
 const Pattern = @import("../Pattern.zig");

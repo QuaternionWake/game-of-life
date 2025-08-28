@@ -2,8 +2,7 @@ const std = @import("std");
 const Thread = std.Thread;
 const Mutex = Thread.Mutex;
 const Semaphore = Thread.Semaphore;
-const Queue = std.fifo.LinearFifo;
-const List = std.ArrayList;
+const List = std.array_list.Managed;
 
 const Gol = @import("GameOfLife.zig");
 
@@ -28,7 +27,7 @@ const SetTileArgs = struct { x: isize, y: isize, tile: bool };
 // differently)
 const SetTilesArgs = struct { x: isize, y: isize, tiles: List(Gol.Tile) };
 
-messages: Queue(Message, .{ .Static = 1024 }) = .init(),
+messages: MsgQueue = .{},
 message_mutex: Mutex = .{},
 message_count: Semaphore = .{},
 
@@ -63,7 +62,7 @@ pub fn run(self: *GameThread, gol: Gol) !void {
             }
             self.message_mutex.lock();
             defer self.message_mutex.unlock();
-            break :blk self.messages.readItem();
+            break :blk self.messages.pop();
         } orelse {
             timer.reset();
             game.next();
@@ -103,6 +102,35 @@ pub fn run(self: *GameThread, gol: Gol) !void {
 pub fn message(self: *GameThread, msg: Message) void {
     self.message_mutex.lock();
     defer self.message_mutex.unlock();
-    self.messages.writeItem(msg) catch return;
+    self.messages.push(msg) catch return;
     self.message_count.post();
 }
+
+const MsgQueue = struct {
+    buffer: [1024]Message = undefined,
+    read_idx: usize = 0,
+    write_idx: usize = 0,
+    full: bool = false,
+
+    fn push(self: *MsgQueue, msg: Message) !void {
+        if (self.full)
+            return error.OutOfMemory;
+
+        self.buffer[self.write_idx] = msg;
+        self.write_idx = (self.write_idx + 1) % 1024;
+
+        if (self.read_idx == self.write_idx)
+            self.full = true;
+    }
+
+    fn pop(self: *MsgQueue) ?Message {
+        if (self.read_idx == self.write_idx and !self.full)
+            return null;
+
+        const val = self.buffer[self.read_idx];
+        self.read_idx = (self.read_idx + 1) % 1024;
+
+        self.full = false;
+        return val;
+    }
+};

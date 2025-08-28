@@ -1,5 +1,5 @@
 const std = @import("std");
-const List = std.ArrayList;
+const List = std.array_list.Managed;
 const Random = std.Random;
 const Allocator = std.mem.Allocator;
 
