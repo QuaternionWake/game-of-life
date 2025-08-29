@@ -4,6 +4,8 @@ const rlz = @import("raylib_zig");
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const use_llvm = b.option(bool, "llvm", "Force using LLVM for codegen");
+
     var options = b.addOptions();
 
     const exe_mod = b.createModule(.{
@@ -15,6 +17,7 @@ pub fn build(b: *std.Build) !void {
     const exe = b.addExecutable(.{
         .name = "game_of_life",
         .root_module = exe_mod,
+        .use_llvm = use_llvm,
     });
 
     const rl_dep = b.dependency("raylib_zig", .{
